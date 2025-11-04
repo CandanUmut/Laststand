@@ -1,35 +1,24 @@
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import 'scenes/splash_scene.dart';
+import 'game/app_game.dart';
+import 'ui/game_over_overlay.dart';
+import 'ui/hud.dart';
+import 'ui/upgrade_overlay.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const DevilsLastStandApp());
-}
+  final game = AppGame();
 
-class DevilsLastStandApp extends StatelessWidget {
-  const DevilsLastStandApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = ThemeData(
-      brightness: Brightness.dark,
-      textTheme: GoogleFonts.orbitronTextTheme(
-        ThemeData(brightness: Brightness.dark).textTheme,
-      ),
-      colorScheme: const ColorScheme.dark(
-        primary: Color(0xFFFF8243),
-        secondary: Color(0xFF4DE1FF),
-        background: Color(0xFF080B12),
-      ),
-    );
-
-    return MaterialApp(
-      title: "Devil's Last Stand",
-      theme: theme,
-      debugShowCheckedModeBanner: false,
-      home: const SplashScene(),
-    );
-  }
+  runApp(
+    GameWidget(
+      game: game,
+      overlayBuilderMap: {
+        HudOverlay.overlayId: (context, game) => HudOverlay(game: game as AppGame),
+        UpgradeOverlay.overlayId: (context, game) => UpgradeOverlay(game: game as AppGame),
+        GameOverOverlay.overlayId: (context, game) => GameOverOverlay(game: game as AppGame),
+      },
+      initialActiveOverlays: const [HudOverlay.overlayId],
+    ),
+  );
 }

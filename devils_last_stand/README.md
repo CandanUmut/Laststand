@@ -6,7 +6,7 @@ This repository contains a Flutter + Flame scaffolding for the **Devil's Last St
 
 1. Install the latest [Flutter SDK](https://docs.flutter.dev/get-started/install).
 2. Run `flutter pub get` to install dependencies.
-3. Launch on web with `flutter run -d chrome` or on a connected device with `flutter run`.
+3. Launch on web with `flutter run -d chrome --web-renderer canvaskit` or on a connected device with `flutter run`.
 
 > **Note:** The container environment used to generate this scaffold did not include the Flutter SDK, so commands such as `flutter create` were not executed. After cloning, ensure Flutter is installed locally before running the project.
 
