@@ -1,0 +1,26 @@
+[
+  {
+    "id": "arc_coil",
+    "name": "Arc Coil",
+    "fireRate": 3.0,
+    "damage": 18,
+    "range": 200,
+    "behavior": "chain"
+  },
+  {
+    "id": "sunforge_cannon",
+    "name": "Sunforge Cannon",
+    "fireRate": 1.2,
+    "damage": 40,
+    "range": 260,
+    "behavior": "pierce"
+  },
+  {
+    "id": "needle_swarm",
+    "name": "Needle Swarm",
+    "fireRate": 6.0,
+    "damage": 10,
+    "range": 160,
+    "behavior": "spray"
+  }
+]
