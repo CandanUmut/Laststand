@@ -1,155 +1,182 @@
+import 'dart:math' as math;
+
 import 'package:flame/components.dart';
-import 'package:flame/events.dart';
 import 'package:flame/game.dart';
-import 'package:flame/input.dart';
+import 'package:flame/events.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../core/assets.dart';
-import '../core/constants.dart';
-import '../core/input.dart';
-import '../core/rng.dart';
-import '../data/enemy_defs.dart';
-import '../data/tower_defs.dart';
-import '../data/upgrade_defs.dart';
-import '../data/weapon_defs.dart';
 import 'components/base_core.dart';
+import 'components/enemy.dart';
 import 'components/player.dart';
-import 'systems/ring_expansion.dart';
-import 'systems/tower_builder.dart';
-import 'systems/upgrade_draft.dart';
-import 'systems/wave_manager.dart';
 
-/// Central FlameGame that owns the simulation and overlays.
 class AppGame extends FlameGame
-    with HasCollisionDetection, HasKeyboardHandlerComponents, TapCallbacks {
-  AppGame({int? seed}) : rng = GameRng(seed);
+    with HasCollisionDetection, HasKeyboardHandlerComponents, HasTappablesComponents, TapDetector {
+  AppGame();
 
-  final GameRng rng;
-  late final MovementInput movementInput;
-  late final EnemyDatabase enemyDatabase;
-  late final TowerDatabase towerDatabase;
-  late final WeaponDatabase weaponDatabase;
-  late final UpgradeDatabase upgradeDatabase;
+  static const String hudOverlay = 'HudOverlay';
+  static const String upgradeOverlay = 'UpgradeOverlay';
+  static const String gameOverOverlay = 'GameOverOverlay';
 
-  final ValueNotifier<int> waveIndex = ValueNotifier<int>(1);
-  final ValueNotifier<double> coreHealth = ValueNotifier<double>(1.0);
-  final ValueNotifier<int> essence = ValueNotifier<int>(0);
-  final ValueNotifier<bool> gameOver = ValueNotifier<bool>(false);
+  late final World _world;
+  late final CameraComponent _camera;
+  late final Player _player;
+  late final BaseCore _baseCore;
+  JoystickComponent? _joystick;
 
-  late final WaveManager waveManager;
-  late final RingExpansionSystem ringExpansion;
-  late final TowerBuilderSystem towerBuilder;
-  late final UpgradeDraftSystem upgradeDraft;
+  final ValueNotifier<int> coreHp = ValueNotifier<int>(0);
+  int coreMaxHp = 0;
+  final ValueNotifier<int> waveTimeRemaining = ValueNotifier<int>(0);
+  final ValueNotifier<int> resources = ValueNotifier<int>(0);
 
-  bool isPausedForUpgrade = false;
-  bool _contentReady = false;
+  final Vector2 _playerSpawn = Vector2(0, -180);
 
-  bool get isReady => _contentReady;
+  double _waveTimer = 60;
+  bool _isGameOver = false;
+  VoidCallback? _coreHpListener;
+
+  bool get isGameOver => _isGameOver;
+
+  Iterable<EnemyComponent> get enemies => _world.children.whereType<EnemyComponent>();
+
+  bool get _isTouchDevice {
+    if (kIsWeb) {
+      return false;
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  @override
+  Color backgroundColor() => const Color(0xFF10141C);
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    await _loadDatabases();
-    await _preloadAudio();
 
-    camera.viewport = FixedResolutionViewport(Vector2(1280, 720));
+    _world = World();
+    _camera = CameraComponent.withFixedResolution(world: _world, width: 800, height: 600)
+      ..viewfinder.anchor = Anchor.center;
+    addAll([_world, _camera]);
 
-    movementInput = MovementInput();
-    add(movementInput);
+    if (_isTouchDevice) {
+      _joystick = JoystickComponent(
+        knob: CircleComponent(radius: 25, paint: Paint()..color = Colors.white.withOpacity(0.8)),
+        background:
+            CircleComponent(radius: 50, paint: Paint()..color = Colors.white.withOpacity(0.25)),
+        margin: const EdgeInsets.only(left: 40, bottom: 40),
+      )
+        ..priority = 100
+        ..positionType = PositionType.viewport;
+      add(_joystick!);
+    }
 
-    ringExpansion = RingExpansionSystem();
-    add(ringExpansion);
+    _baseCore = BaseCore()
+      ..position = Vector2.zero();
+    _baseCore.onDestroyed = handleGameOver;
+    await _world.add(_baseCore);
 
-    final joystick = JoystickComponent(
-      knob: CircleComponent(radius: 24, paint: Paint()..color = Colors.white70),
-      background: CircleComponent(radius: 48, paint: Paint()..color = Colors.white24),
-      margin: const EdgeInsets.only(left: 40, bottom: 40),
-    );
-    movementInput.joystick = joystick;
-    add(joystick);
+    coreMaxHp = _baseCore.maxHp;
+    coreHp.value = _baseCore.hp.value;
+    _coreHpListener = () {
+      coreHp.value = _baseCore.hp.value;
+      if (_baseCore.hp.value <= 0) {
+        handleGameOver();
+      }
+    };
+    _baseCore.hp.addListener(_coreHpListener!);
 
-    final core = BaseCoreComponent(position: size / 2);
-    add(core);
+    _player = Player(
+      joystick: _joystick,
+    )
+      ..position = _playerSpawn.clone();
+    await _world.add(_player);
+    _camera.follow(_player);
 
-    final player = PlayerComponent(
-      movementInput: movementInput,
-      weaponDatabase: weaponDatabase,
-      position: size / 2 + Vector2(0, -GameConstants.baseTileSize * 2),
-    );
-    add(player);
-
-    towerBuilder = TowerBuilderSystem(
-      towerDatabase: towerDatabase,
-      ringExpansion: ringExpansion,
-      essence: essence,
-    )..priority = 10;
-    add(towerBuilder);
-
-    upgradeDraft = UpgradeDraftSystem(
-      upgradeDatabase: upgradeDatabase,
-      weaponDatabase: weaponDatabase,
-      essence: essence,
-      rng: rng,
-      onUpgradeChosen: _handleUpgradeChoice,
-    );
-    add(upgradeDraft);
-
-    waveManager = WaveManager(
-      enemyDatabase: enemyDatabase,
-      waveIndex: waveIndex,
-      ringExpansion: ringExpansion,
-      onWaveCompleted: _handleWaveComplete,
-      onCoreDamaged: _handleCoreDamage,
-    );
-    add(waveManager);
-    waveManager.spawnWave();
-
-    add(ScreenHitbox());
-
-    _contentReady = true;
+    waveTimeRemaining.value = _waveTimer.ceil();
   }
 
-  Future<void> _loadDatabases() async {
-    enemyDatabase = await EnemyDatabase.load();
-    towerDatabase = await TowerDatabase.load();
-    weaponDatabase = await WeaponDatabase.load();
-    upgradeDatabase = await UpgradeDatabase.load();
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (_isGameOver) {
+      return;
+    }
+
+    _waveTimer = math.max(0, _waveTimer - dt);
+    waveTimeRemaining.value = _waveTimer.ceil();
   }
 
-  Future<void> _preloadAudio() async {
-    // TODO: hook up flame_audio caching when assets are available.
-  }
-
-  void _handleUpgradeChoice(UpgradeDefinition upgrade) {
-    // TODO: apply upgrade effects to player/towers.
-  }
-
-  void _handleWaveComplete() {
-    essence.value += 25;
-    ringExpansion.unlockNextRing();
-    upgradeDraft.presentChoices();
-    isPausedForUpgrade = true;
+  void showUpgradeOverlay() {
+    if (_isGameOver || overlays.isActive(upgradeOverlay)) {
+      return;
+    }
     pauseEngine();
+    overlays.add(upgradeOverlay);
   }
 
-  void _handleCoreDamage(double normalizedHealth) {
-    coreHealth.value = normalizedHealth;
-    if (normalizedHealth <= 0) {
-      gameOver.value = true;
+  void hideUpgradeOverlay() {
+    overlays.remove(upgradeOverlay);
+    if (!_isGameOver) {
+      resumeEngine();
     }
   }
 
-  void resumeAfterUpgrade() {
-    isPausedForUpgrade = false;
+  void handleGameOver() {
+    if (_isGameOver) {
+      return;
+    }
+    _isGameOver = true;
+    pauseEngine();
+    overlays.add(gameOverOverlay);
+  }
+
+  void restart() {
+    overlays.remove(gameOverOverlay);
+    overlays.remove(upgradeOverlay);
+
+    _isGameOver = false;
+    _waveTimer = 60;
+    waveTimeRemaining.value = _waveTimer.ceil();
+
+    _baseCore.reset();
+    coreHp.value = _baseCore.hp.value;
+
+    resources.value = 0;
+
+    _player.resetState(_playerSpawn);
+
+    final bullets = _world.children.whereType<PlayerBullet>().toList();
+    for (final bullet in bullets) {
+      bullet.removeFromParent();
+    }
+
     resumeEngine();
+  }
+
+  Future<void> addToWorld(PositionComponent component) {
+    return _world.add(component);
+  }
+
+  @override
+  void onTapUp(TapUpInfo info) {
+    super.onTapUp(info);
+    if (_isTouchDevice) {
+      _player.dash();
+    }
   }
 
   @override
   void onRemove() {
-    waveIndex.dispose();
-    coreHealth.dispose();
-    essence.dispose();
-    gameOver.dispose();
+    if (_coreHpListener != null) {
+      _baseCore.hp.removeListener(_coreHpListener!);
+      _coreHpListener = null;
+    }
     super.onRemove();
   }
 }
