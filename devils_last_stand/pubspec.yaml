@@ -1,0 +1,30 @@
+name: devils_last_stand
+description: Devil's Last Stand MVP built with Flutter, Flame, and data-driven content.
+publish_to: 'none'
+version: 0.1.0+1
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flame: ^1.11.0
+  flame_audio: ^2.1.2
+  flame_tiled: ^1.17.0
+  shared_preferences: ^2.2.2
+  google_fonts: ^6.1.0
+  collection: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/data/enemies.json
+    - assets/data/towers.json
+    - assets/data/weapons.json
+    - assets/data/upgrades.json
+    - assets/sfx/

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "perk_dash_charge",
+    "name": "Twin Dash",
+    "description": "+1 dash charge for the Keeper.",
+    "type": "playerPerk",
+    "effects": {"dash_charges": 1}
+  },
+  {
+    "id": "perk_pickup_magnet",
+    "name": "Flux Magnet",
+    "description": "Pickups attract from further away.",
+    "type": "playerPerk",
+    "effects": {"pickup_radius": 80}
+  },
+  {
+    "id": "mod_arc_chain",
+    "name": "Arc Cascade",
+    "description": "Arc Coil chains +1 target and +10% range.",
+    "type": "weaponMod",
+    "effects": {"weapon": "arc_coil", "extra_chains": 1, "chain_range": 0.1}
+  },
+  {
+    "id": "tech_frost_brittle",
+    "name": "Brittle Chill",
+    "description": "Frost Lattice applies brittle increasing Rail Pike damage.",
+    "type": "towerTech",
+    "effects": {"tower": "frost_lattice", "brittle_bonus": 0.2}
+  }
+]

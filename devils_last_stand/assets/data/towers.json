@@ -1,0 +1,42 @@
+[
+  {
+    "id": "bolt_spire",
+    "name": "Bolt Spire",
+    "cost": 30,
+    "targets": ["ground", "air"],
+    "tiers": [
+      {"range": 180, "damage": 18, "fireRate": 1.8, "special": ""},
+      {"range": 200, "damage": 26, "fireRate": 2.2, "special": "Overcharge"}
+    ]
+  },
+  {
+    "id": "ember_sprayer",
+    "name": "Ember Sprayer",
+    "cost": 45,
+    "targets": ["ground"],
+    "tiers": [
+      {"range": 120, "damage": 8, "fireRate": 4.0, "special": "Cone DoT"},
+      {"range": 130, "damage": 11, "fireRate": 4.5, "special": "Burning Ground"}
+    ]
+  },
+  {
+    "id": "frost_lattice",
+    "name": "Frost Lattice",
+    "cost": 40,
+    "targets": ["ground"],
+    "tiers": [
+      {"range": 160, "damage": 5, "fireRate": 1.2, "special": "Slow Field"},
+      {"range": 170, "damage": 8, "fireRate": 1.4, "special": "Brittle"}
+    ]
+  },
+  {
+    "id": "redeemer_totem",
+    "name": "Redeemer Totem",
+    "cost": 75,
+    "targets": ["elite"],
+    "tiers": [
+      {"range": 150, "damage": 0, "fireRate": 0.2, "special": "Convert elite"},
+      {"range": 170, "damage": 0, "fireRate": 0.25, "special": "Faster convert"}
+    ]
+  }
+]

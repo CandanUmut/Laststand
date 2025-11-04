@@ -1,0 +1,38 @@
+[
+  {
+    "id": "skitterling",
+    "name": "Skitterling",
+    "speed": 120,
+    "health": 40,
+    "damage": 5,
+    "elite": false,
+    "drops": {"essence": 1}
+  },
+  {
+    "id": "brute",
+    "name": "Brute",
+    "speed": 70,
+    "health": 180,
+    "damage": 15,
+    "elite": false,
+    "drops": {"essence": 3}
+  },
+  {
+    "id": "imp_bomber",
+    "name": "Imp Bomber",
+    "speed": 90,
+    "health": 100,
+    "damage": 20,
+    "elite": true,
+    "drops": {"essence": 4, "cracked_sigil": 1}
+  },
+  {
+    "id": "wraith",
+    "name": "Wraith",
+    "speed": 150,
+    "health": 80,
+    "damage": 10,
+    "elite": false,
+    "drops": {"essence": 2}
+  }
+]
