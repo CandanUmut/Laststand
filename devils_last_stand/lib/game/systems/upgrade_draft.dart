@@ -1,37 +1,37 @@
-import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/rng.dart';
 import '../../data/upgrade_defs.dart';
-import '../../data/weapon_defs.dart';
 
-class UpgradeDraftSystem extends Component {
+typedef UpgradeChosenCallback = void Function(UpgradeDefinition definition);
+
+class UpgradeDraftSystem {
   UpgradeDraftSystem({
     required this.upgradeDatabase,
-    required this.weaponDatabase,
-    required this.essence,
     required this.rng,
     required this.onUpgradeChosen,
   });
 
   final UpgradeDatabase upgradeDatabase;
-  final WeaponDatabase weaponDatabase;
-  final ValueNotifier<int> essence;
   final GameRng rng;
-  final void Function(UpgradeDefinition) onUpgradeChosen;
+  final UpgradeChosenCallback onUpgradeChosen;
 
-  List<UpgradeDefinition> currentChoices = const [];
+  final ValueNotifier<List<UpgradeDefinition>> choices =
+      ValueNotifier<List<UpgradeDefinition>>(<UpgradeDefinition>[]);
 
   void presentChoices() {
-    final definitions = upgradeDatabase.definitions.values.toList();
-    definitions.shuffle();
-    currentChoices = definitions.take(3).toList();
-    // TODO: trigger overlay to display cards.
+    final pool = upgradeDatabase.definitions.values.toList();
+    for (var i = pool.length - 1; i > 0; i--) {
+      final j = rng.nextInt(i + 1);
+      final tmp = pool[i];
+      pool[i] = pool[j];
+      pool[j] = tmp;
+    }
+    choices.value = pool.take(3).toList();
   }
 
-  void pickUpgrade(UpgradeDefinition upgrade) {
-    onUpgradeChosen(upgrade);
-    currentChoices = const [];
-    // TODO: close overlay and resume game.
+  void pickUpgrade(UpgradeDefinition definition) {
+    onUpgradeChosen(definition);
+    choices.value = const [];
   }
 }

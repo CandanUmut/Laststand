@@ -1,30 +1,10 @@
 [
-  {
-    "id": "perk_dash_charge",
-    "name": "Twin Dash",
-    "description": "+1 dash charge for the Keeper.",
-    "type": "playerPerk",
-    "effects": {"dash_charges": 1}
-  },
-  {
-    "id": "perk_pickup_magnet",
-    "name": "Flux Magnet",
-    "description": "Pickups attract from further away.",
-    "type": "playerPerk",
-    "effects": {"pickup_radius": 80}
-  },
-  {
-    "id": "mod_arc_chain",
-    "name": "Arc Cascade",
-    "description": "Arc Coil chains +1 target and +10% range.",
-    "type": "weaponMod",
-    "effects": {"weapon": "arc_coil", "extra_chains": 1, "chain_range": 0.1}
-  },
-  {
-    "id": "tech_frost_brittle",
-    "name": "Brittle Chill",
-    "description": "Frost Lattice applies brittle increasing Rail Pike damage.",
-    "type": "towerTech",
-    "effects": {"tower": "frost_lattice", "brittle_bonus": 0.2}
-  }
+  {"id":"perk_move_1","name":"Fleet Footing","description":"Move speed +15%","type":"playerPerk","effects":{"moveSpeed":0.15}},
+  {"id":"perk_dash_1","name":"Twin Dash","description":"+1 dash charge","type":"playerPerk","effects":{"dash_charges":1}},
+  {"id":"perk_magnet_1","name":"Flux Magnet","description":"Pickups attract from further away","type":"playerPerk","effects":{"pickup_radius":80}},
+  {"id":"mod_rate_1","name":"Rapid Fire","description":"Increase fire rate by 10%","type":"weaponMod","effects":{"fireRate":0.1}},
+  {"id":"mod_speed_1","name":"Hyper Coils","description":"Projectiles travel 15% faster","type":"weaponMod","effects":{"projectileSpeed":0.15}},
+  {"id":"tech_bolt_overcharge","name":"Overcharge","description":"Bolt Spires build crackling stacks","type":"towerTech","effects":{"tower":"bolt_spire"}},
+  {"id":"tech_ember_burn","name":"Scorching Residue","description":"Ember Sprayers leave lingering heat","type":"towerTech","effects":{"tower":"ember_sprayer"}},
+  {"id":"tech_frost_brittle","name":"Brittle Chill","description":"Frost Lattice applies brittle","type":"towerTech","effects":{"tower":"frost_lattice"}}
 ]

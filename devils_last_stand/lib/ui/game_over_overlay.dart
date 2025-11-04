@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../game/app_game.dart';
@@ -33,6 +35,14 @@ class GameOverOverlay extends StatelessWidget {
                         .textTheme
                         .headlineSmall
                         ?.copyWith(color: Colors.redAccent),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Waves cleared: ${math.max(0, game.waveIndex.value - 1)}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: Colors.white70),
                   ),
                   const SizedBox(height: 12),
                   Text(

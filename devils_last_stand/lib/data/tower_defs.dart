@@ -10,6 +10,8 @@ class TowerTierStats {
     required this.damage,
     required this.fireRate,
     required this.special,
+    this.dot,
+    this.slowPct,
   });
 
   factory TowerTierStats.fromJson(Map<String, dynamic> json) {
@@ -18,6 +20,8 @@ class TowerTierStats {
       damage: (json['damage'] as num).toDouble(),
       fireRate: (json['fireRate'] as num).toDouble(),
       special: json['special'] as String? ?? '',
+      dot: (json['dot'] as num?)?.toDouble(),
+      slowPct: (json['slowPct'] as num?)?.toDouble(),
     );
   }
 
@@ -25,6 +29,8 @@ class TowerTierStats {
   final double damage;
   final double fireRate;
   final String special;
+  final double? dot;
+  final double? slowPct;
 }
 
 class TowerDefinition {

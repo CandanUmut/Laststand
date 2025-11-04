@@ -1,47 +1,54 @@
-import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Lightweight save manager for meta progression + options.
-class SaveManager {
-  static const _metaKey = 'meta_profile';
-  static const _optionsKey = 'options';
+/// Lightweight storage facade that stays web/mobile safe by relying solely on
+/// [SharedPreferences]. The keys live next to the places that read them so the
+/// data stays malleable while we shape the MVP.
+class Storage {
+  Storage._();
 
-  Future<SharedPreferences> _prefs() => SharedPreferences.getInstance();
+  static final Storage instance = Storage._();
 
-  Future<Map<String, dynamic>> loadMeta() async {
-    final prefs = await _prefs();
-    final raw = prefs.getString(_metaKey);
-    if (raw == null) {
-      return {
-        'currency': 0,
-        'unlockedRings': 0,
-        'blueprints': <String>[],
-      };
+  SharedPreferences? _prefs;
+
+  /// Keys that other systems rely on. Intentionally kept small for now.
+  static const keyOptionsVolume = 'options.volume';
+  static const keyOptionsReducedMotion = 'options.reducedMotion';
+  static const keyMetaCurrency = 'meta.currency';
+  static const keyMetaUnlocks = 'meta.unlocks';
+
+  Future<void> init() async {
+    _prefs ??= await SharedPreferences.getInstance();
+  }
+
+  SharedPreferences get _ensurePrefs {
+    final prefs = _prefs;
+    if (prefs == null) {
+      throw StateError('Storage.init() must be awaited before use.');
     }
-    return json.decode(raw) as Map<String, dynamic>;
+    return prefs;
   }
 
-  Future<void> saveMeta(Map<String, dynamic> data) async {
-    final prefs = await _prefs();
-    await prefs.setString(_metaKey, json.encode(data));
+  int getInt(String key, {int defaultValue = 0}) {
+    return _ensurePrefs.getInt(key) ?? defaultValue;
   }
 
-  Future<Map<String, dynamic>> loadOptions() async {
-    final prefs = await _prefs();
-    final raw = prefs.getString(_optionsKey);
-    if (raw == null) {
-      return {
-        'audio': 0.7,
-        'reducedMotion': false,
-        'colorBlindMode': 'none',
-      };
-    }
-    return json.decode(raw) as Map<String, dynamic>;
+  Future<void> setInt(String key, int value) {
+    return _ensurePrefs.setInt(key, value);
   }
 
-  Future<void> saveOptions(Map<String, dynamic> data) async {
-    final prefs = await _prefs();
-    await prefs.setString(_optionsKey, json.encode(data));
+  double getDouble(String key, {double defaultValue = 0}) {
+    return _ensurePrefs.getDouble(key) ?? defaultValue;
+  }
+
+  Future<void> setDouble(String key, double value) {
+    return _ensurePrefs.setDouble(key, value);
+  }
+
+  bool getBool(String key, {bool defaultValue = false}) {
+    return _ensurePrefs.getBool(key) ?? defaultValue;
+  }
+
+  Future<void> setBool(String key, bool value) {
+    return _ensurePrefs.setBool(key, value);
   }
 }

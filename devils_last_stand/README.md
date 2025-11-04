@@ -1,33 +1,40 @@
-# Devil's Last Stand MVP Skeleton
+# Devil's Last Stand MVP
 
-This repository contains a Flutter + Flame scaffolding for the **Devil's Last Stand** prototype. It targets Android, iOS, and Web with an asset-light presentation.
+This repository contains a Flame-powered survivor-meets-tower-defense prototype targeting Android, iOS, and Web. The game is fully data driven so designers can iterate on JSON without rebuilding the binary.
 
-## Getting Started
+## Running the Game
 
 1. Install the latest [Flutter SDK](https://docs.flutter.dev/get-started/install).
-2. Run `flutter pub get` to install dependencies.
-3. Launch on web with `flutter run -d chrome --web-renderer canvaskit` or on a connected device with `flutter run`.
+2. From the `devils_last_stand` directory run `flutter pub get` to download dependencies.
+3. Launch on your preferred target:
+   * Web (CanvasKit): `flutter run -d chrome --web-renderer canvaskit`
+   * Web (HTML fallback): `flutter run -d chrome --web-renderer html`
+   * Android/iOS: `flutter run`
 
-> **Note:** The container environment used to generate this scaffold did not include the Flutter SDK, so commands such as `flutter create` were not executed. After cloning, ensure Flutter is installed locally before running the project.
+> **First tap unlocks audio on the web.** Avoid playing SFX until the player interacts once to satisfy browser autoplay policies.
 
-## Project Structure
-
-The important directories are:
+## Project Layout
 
 ```
 lib/
-  core/        // Shared constants, asset keys, input helpers, saving utilities
-  data/        // Data models and JSON loading logic
-  game/        // Flame game, components, and systems
-  scenes/      // Flutter UI scenes for menus, play, and summaries
-  ui/          // Flutter overlays used during gameplay
+  core/        // constants, RNG helpers, shared input + save utilities
+  data/        // JSON-backed definition loading
+  game/        // Flame game, components, and gameplay systems
+  scenes/      // placeholder scene stubs for future menus
+  ui/          // Flutter overlays (HUD, build, upgrades, settings)
 assets/
-  data/        // JSON stats for enemies, towers, weapons, upgrades
-  sfx/         // Placeholder audio assets
+  data/        // Tunable enemy, tower, weapon, and upgrade stats
+  sfx/         // Placeholder audio hooks
 ```
 
-## Next Steps
+## Tuning & Data
 
-* Flesh out game systems (combat, wave spawning, purify mechanic).
-* Replace placeholder art and audio with final assets.
-* Implement deterministic seeding, additional biomes, and meta progression.
+* Core numbers live in `lib/core/constants.dart`.
+* Gameplay stats are defined in `assets/data/*.json` and hot-reloaded by Flutter; no code rebuild required.
+* Save data (volume, reduced motion, meta currency/unlocks) is persisted via `SharedPreferences` in `lib/core/save.dart` and works across web/mobile.
+
+## Known Limitations
+
+* Placeholder art/audio and extremely light feedback for the Redeemer conversion.
+* No networked leaderboard or deterministic seeding yet.
+* Particle heavy effects are still enabled even when reduced motion is toggled; future work can add alternate visuals.

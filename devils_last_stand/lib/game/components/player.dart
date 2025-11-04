@@ -3,176 +3,189 @@ import 'dart:ui';
 
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
-import 'package:flame/events.dart';
-import 'package:flame/timer.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../../core/constants.dart';
+import '../../core/input.dart';
 import '../app_game.dart';
 import 'enemy.dart';
+import 'pickup.dart';
+import 'projectile.dart';
 
 class Player extends PositionComponent
-    with
-        CollisionCallbacks,
-        KeyboardHandler,
-        TapCallbacks,
-        HasGameRef<AppGame> {
-  Player({
-    this.joystick,
-  }) : super(size: Vector2.all(48), anchor: Anchor.center);
+    with CollisionCallbacks, HasGameRef<AppGame> {
+  Player({required this.input})
+      : super(size: Vector2.all(48), anchor: Anchor.center);
 
-  final JoystickComponent? joystick;
+  final InputController input;
 
-  final Set<LogicalKeyboardKey> _keysPressed = <LogicalKeyboardKey>{};
-  final double _moveSpeed = 220;
-  final double _dashDistance = 200;
-  final double _dashCooldownDuration = 1.0;
-  final double _invincibilityDuration = 0.25;
+  double moveSpeedMultiplier = 1.0;
+  double fireInterval = 0.32;
+  double projectileSpeed = GameConstants.playerBaseProjectileSpeed;
+  int projectilePierce = 0;
+  int maxDashCharges = 1;
+  double magnetRadius = GameConstants.playerBaseMagnet;
 
-  late final Timer _fireTimer;
-  Vector2 _aimDirection = Vector2(1, 0);
-  Vector2 _lastMoveDirection = Vector2.zero();
-  double _dashCooldown = 0;
-  double _invincibilityTimer = 0;
+  double _fireTimer = 0;
+  double _dashTimer = 0;
+  double _dashRecharge = 0;
+  double _invulnerabilityTimer = 0;
+  int _availableDashCharges = 1;
+  bool _isDashing = false;
+  Vector2 _dashDirection = Vector2.zero();
+  Vector2 _lastMoveDirection = Vector2(0, 1);
 
-  bool get isInvincible => _invincibilityTimer > 0;
+  Rect get _worldBounds {
+    final size = GameConstants.worldSize;
+    return Rect.fromCenter(
+      center: Offset.zero,
+      width: size.x - this.size.x,
+      height: size.y - this.size.y,
+    );
+  }
+
+  double get _moveSpeed => GameConstants.playerBaseMoveSpeed * moveSpeedMultiplier;
+
+  bool get isInvincible => _invulnerabilityTimer > 0;
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
     add(CircleHitbox.relative(0.7, parentSize: size));
-    _fireTimer = Timer(0.3, onTick: _fireBullet, repeat: true)..start();
   }
 
   @override
   void update(double dt) {
     super.update(dt);
-    _fireTimer.update(dt);
-
-    if (_dashCooldown > 0) {
-      _dashCooldown = math.max(0, _dashCooldown - dt);
-    }
-    if (_invincibilityTimer > 0) {
-      _invincibilityTimer = math.max(0, _invincibilityTimer - dt);
+    _fireTimer -= dt;
+    if (_invulnerabilityTimer > 0) {
+      _invulnerabilityTimer = math.max(0, _invulnerabilityTimer - dt);
     }
 
-    _updateMovement(dt);
-    _updateAimDirection();
+    _handleDash(dt);
+    _handleMovement(dt);
+    _handleAutoFire();
   }
 
-  void _updateMovement(double dt) {
-    final Vector2 direction = Vector2.zero();
-    if (joystick != null) {
-      final joystickDelta = joystick!.relativeDelta.clone();
-      if (joystickDelta.length2 > 0.01) {
-        direction.add(joystickDelta);
-      }
-    }
-
-    if (_keysPressed.contains(LogicalKeyboardKey.keyW) ||
-        _keysPressed.contains(LogicalKeyboardKey.arrowUp)) {
-      direction.y -= 1;
-    }
-    if (_keysPressed.contains(LogicalKeyboardKey.keyS) ||
-        _keysPressed.contains(LogicalKeyboardKey.arrowDown)) {
-      direction.y += 1;
-    }
-    if (_keysPressed.contains(LogicalKeyboardKey.keyA) ||
-        _keysPressed.contains(LogicalKeyboardKey.arrowLeft)) {
-      direction.x -= 1;
-    }
-    if (_keysPressed.contains(LogicalKeyboardKey.keyD) ||
-        _keysPressed.contains(LogicalKeyboardKey.arrowRight)) {
-      direction.x += 1;
-    }
-
-    if (!direction.isZero()) {
-      direction.normalize();
-      position += direction * _moveSpeed * dt;
-      _lastMoveDirection = direction.clone();
-    }
-  }
-
-  void _updateAimDirection() {
-    EnemyComponent? closestEnemy;
-    var closestDistance = double.infinity;
-
-    for (final enemy in gameRef.enemies) {
-      final distance = enemy.position.distanceTo(position);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestEnemy = enemy;
-      }
-    }
-
-    if (closestEnemy != null) {
-      final direction = (closestEnemy.position - position);
-      if (!direction.isZero()) {
-        _aimDirection = direction.normalized();
-      }
-    } else if (!_lastMoveDirection.isZero()) {
-      _aimDirection = _lastMoveDirection.normalized();
-    }
-  }
-
-  void _fireBullet() {
-    if (gameRef.isGameOver) {
-      return;
-    }
-    if (_aimDirection.length2 < 0.01) {
-      return;
-    }
-    final bullet = PlayerBullet(
-      startPosition: position.clone(),
-      direction: _aimDirection.normalized(),
-    );
-    gameRef.addToWorld(bullet);
-  }
-
-  void dash() {
-    if (_dashCooldown > 0) {
-      return;
-    }
-    final Vector2 dashDirection;
-    if (!_lastMoveDirection.isZero()) {
-      dashDirection = _lastMoveDirection.normalized();
-    } else if (_aimDirection.length2 > 0.01) {
-      dashDirection = _aimDirection.normalized();
+  void _handleMovement(double dt) {
+    final desired = input.movement.clone();
+    if (_isDashing) {
+      position += _dashDirection * GameConstants.dashBurstSpeed * dt;
     } else {
-      return;
+      if (desired.length2 > 1) {
+        desired.normalize();
+      }
+      if (!desired.isZero()) {
+        _lastMoveDirection = desired.clone();
+      }
+      position += desired * _moveSpeed * dt;
     }
 
-    position += dashDirection * _dashDistance;
-    _dashCooldown = _dashCooldownDuration;
-    _invincibilityTimer = _invincibilityDuration;
+    final bounds = _worldBounds;
+    final clampedX = position.x.clamp(bounds.left, bounds.right);
+    final clampedY = position.y.clamp(bounds.top, bounds.bottom);
+    position.setValues(clampedX, clampedY);
+  }
+
+  void _handleDash(double dt) {
+    if (input.consumeDashRequest()) {
+      _tryDash();
+    }
+
+    if (_isDashing) {
+      _dashTimer -= dt;
+      if (_dashTimer <= 0) {
+        _isDashing = false;
+      }
+    }
+
+    if (_availableDashCharges < maxDashCharges) {
+      _dashRecharge -= dt;
+      if (_dashRecharge <= 0) {
+        _availableDashCharges += 1;
+        _dashRecharge = GameConstants.dashCooldownSeconds;
+      }
+    }
+  }
+
+  void _handleAutoFire() {
+    if (_fireTimer > 0 || gameRef.isGameOver) {
+      return;
+    }
+    final target = _nearestEnemy();
+    if (target == null) {
+      return;
+    }
+    final direction = (target.position - position);
+    if (direction.length2 <= 0) {
+      return;
+    }
+    direction.normalize();
+    _fire(direction);
+  }
+
+  void _fire(Vector2 direction) {
+    _fireTimer = fireInterval;
+    final projectile = Projectile.player(
+      startPosition: position.clone(),
+      direction: direction,
+      speed: projectileSpeed,
+      damage: 18,
+      pierce: projectilePierce,
+    );
+    gameRef.world.add(projectile);
+  }
+
+  EnemyComponent? _nearestEnemy() {
+    EnemyComponent? closest;
+    var closestDist = double.infinity;
+    for (final enemy in gameRef.world.children.whereType<EnemyComponent>()) {
+      final dist = enemy.position.distanceToSquared(position);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = enemy;
+      }
+    }
+    return closest;
+  }
+
+  void _tryDash() {
+    if (_availableDashCharges <= 0) {
+      return;
+    }
+    final direction = input.movement.isZero()
+        ? _lastMoveDirection.clone()
+        : input.movement.clone();
+    if (direction.length2 <= 0.0001) {
+      return;
+    }
+    direction.normalize();
+    _dashDirection = direction;
+    _isDashing = true;
+    _dashTimer = 0.22;
+    _invulnerabilityTimer =
+        GameConstants.dashInvulnerabilityDuration;
+    _availableDashCharges -= 1;
+    _dashRecharge = GameConstants.dashCooldownSeconds;
   }
 
   void resetState(Vector2 newPosition) {
     position = newPosition.clone();
-    _dashCooldown = 0;
-    _invincibilityTimer = 0;
-    _lastMoveDirection = Vector2.zero();
-    _aimDirection = Vector2(1, 0);
-    _keysPressed.clear();
+    _fireTimer = 0;
+    _dashTimer = 0;
+    _dashRecharge = 0;
+    _availableDashCharges = maxDashCharges;
+    _isDashing = false;
+    _invulnerabilityTimer = 0;
+    _lastMoveDirection = Vector2(0, 1);
   }
 
   @override
-  bool onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
-    if (event is KeyDownEvent) {
-      _keysPressed.add(event.logicalKey);
-      if (event.logicalKey == LogicalKeyboardKey.space) {
-        dash();
-      }
-    } else if (event is KeyUpEvent) {
-      _keysPressed.remove(event.logicalKey);
+  void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
+    if (other is Pickup) {
+      other.collect();
     }
-    return true;
-  }
-
-  @override
-  void onTapDown(TapDownEvent event) {
-    super.onTapDown(event);
-    dash();
+    super.onCollision(intersectionPoints, other);
   }
 
   @override
@@ -180,45 +193,12 @@ class Player extends PositionComponent
     super.render(canvas);
     final radius = size.x / 2;
     final center = Offset(radius, radius);
-    canvas.drawCircle(center, radius, Paint()..color = Colors.lightBlueAccent);
+    final bodyPaint = Paint()..color = Colors.lightBlueAccent;
+    canvas.drawCircle(center, radius, bodyPaint);
     if (isInvincible) {
-      canvas.drawCircle(center, radius, Paint()..color = Colors.white.withOpacity(0.4));
-    }
-  }
-}
-
-class PlayerBullet extends CircleComponent with CollisionCallbacks {
-  PlayerBullet({
-    required Vector2 startPosition,
-    required Vector2 direction,
-    this.speed = 420,
-    this.lifetime = 1.5,
-  })  : velocity = direction.normalized() * speed,
-        super(
-          radius: 6,
-          position: startPosition,
-          anchor: Anchor.center,
-          paint: Paint()..color = Colors.orangeAccent,
-        );
-
-  final double speed;
-  final double lifetime;
-  final Vector2 velocity;
-  double _time = 0;
-
-  @override
-  Future<void> onLoad() async {
-    await super.onLoad();
-    add(CircleHitbox.relative(1, parentSize: size));
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    position += velocity * dt;
-    _time += dt;
-    if (_time >= lifetime) {
-      removeFromParent();
+      final aura = Paint()
+        ..color = Colors.white.withOpacity(0.45);
+      canvas.drawCircle(center, radius, aura);
     }
   }
 }
