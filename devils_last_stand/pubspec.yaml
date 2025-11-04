@@ -23,8 +23,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/data/enemies.json
-    - assets/data/towers.json
-    - assets/data/weapons.json
-    - assets/data/upgrades.json
+    - assets/data/
     - assets/sfx/
