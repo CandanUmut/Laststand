@@ -28,7 +28,8 @@ import 'systems/tower_builder.dart';
 import 'systems/upgrade_draft.dart';
 import 'systems/wave_manager.dart';
 
-class AppGame extends FlameGame with HasCollisionDetection {
+class AppGame extends FlameGame
+    with HasCollisionDetection, HasKeyboardHandlerComponents {
   AppGame();
 
   static const hudOverlay = HudOverlay.overlayId;

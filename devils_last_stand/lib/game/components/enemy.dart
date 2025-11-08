@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../../data/enemy_defs.dart';
 import 'base_core.dart';
@@ -68,5 +69,70 @@ class EnemyComponent extends PositionComponent
   void applySlow(double amount, double duration) {
     _speedMultiplier = (1 - amount).clamp(0.2, 1.0);
     _slowTimer = math.max(_slowTimer, duration);
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    final paint = Paint()..color = _colorForEnemy();
+    final shape = _shapeForEnemy();
+    canvas.drawPath(shape, paint);
+
+    if (definition.isElite) {
+      final border = Paint()
+        ..color = Colors.white.withOpacity(0.35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3;
+      canvas.drawPath(shape, border);
+    }
+  }
+
+  Color _colorForEnemy() {
+    switch (definition.id) {
+      case 'brute':
+        return Colors.deepOrangeAccent;
+      case 'imp_bomber':
+        return Colors.amberAccent.shade400;
+      default:
+        return Colors.pinkAccent.shade200;
+    }
+  }
+
+  Path _shapeForEnemy() {
+    final w = size.x;
+    final h = size.y;
+    switch (definition.id) {
+      case 'brute':
+        return Path()
+          ..addRRect(RRect.fromRectAndRadius(
+            Rect.fromLTWH(0, 0, w, h),
+            const Radius.circular(10),
+          ));
+      case 'imp_bomber':
+        final path = Path();
+        final center = Offset(w / 2, h / 2);
+        final radius = w / 2;
+        for (var i = 0; i < 6; i++) {
+          final angle = math.pi / 6 + i * math.pi / 3;
+          final point = Offset(
+            center.dx + math.cos(angle) * radius,
+            center.dy + math.sin(angle) * radius,
+          );
+          if (i == 0) {
+            path.moveTo(point.dx, point.dy);
+          } else {
+            path.lineTo(point.dx, point.dy);
+          }
+        }
+        path.close();
+        return path;
+      default:
+        return Path()
+          ..moveTo(w / 2, 0)
+          ..lineTo(w, h / 2)
+          ..lineTo(w / 2, h)
+          ..lineTo(0, h / 2)
+          ..close();
+    }
   }
 }

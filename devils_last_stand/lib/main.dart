@@ -1,6 +1,7 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
+import 'core/save.dart';
 import 'game/app_game.dart';
 import 'ui/build_overlay.dart';
 import 'ui/game_over_overlay.dart';
@@ -8,8 +9,9 @@ import 'ui/hud.dart';
 import 'ui/settings_overlay.dart';
 import 'ui/upgrade_overlay.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Storage.instance.init();
   final game = AppGame();
 
   runApp(
