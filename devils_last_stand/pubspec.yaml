@@ -25,3 +25,4 @@ flutter:
   assets:
     - assets/data/
     - assets/sfx/
+    - assets/images/

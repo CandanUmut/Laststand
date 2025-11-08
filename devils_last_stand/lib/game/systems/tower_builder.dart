@@ -23,10 +23,18 @@ class TowerBuilderSystem extends Component with HasGameRef<AppGame> {
   final ValueNotifier<int> crackedSigils;
 
   final Map<Point<int>, TowerComponent> _towers = {};
+  final Set<Point<int>> _buildableCells = <Point<int>>{};
 
   int _redeemerCount = 0;
 
   Iterable<TowerComponent> get towers => _towers.values;
+  int get buildableCellCount => _buildableCells.length;
+
+  void setBuildableCells(Set<Point<int>> cells) {
+    _buildableCells
+      ..clear()
+      ..addAll(cells);
+  }
 
   void prepareGhost(String towerId) {
     // TODO(nova): show placement preview when we add cursor tracking.
@@ -47,6 +55,9 @@ class TowerBuilderSystem extends Component with HasGameRef<AppGame> {
     }
     final cell = ringExpansion.worldToCell(worldPosition);
     if (cell == const Point<int>(0, 0)) {
+      return false;
+    }
+    if (_buildableCells.isNotEmpty && !_buildableCells.contains(cell)) {
       return false;
     }
     if (!ringExpansion.isCellUnlocked(cell)) {

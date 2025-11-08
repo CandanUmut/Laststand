@@ -1,7 +1,9 @@
 import 'dart:math';
 
 import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
 
+import '../../core/assets.dart';
 import '../../core/constants.dart';
 import '../../data/tower_defs.dart';
 import '../app_game.dart';
@@ -22,9 +24,23 @@ abstract class TowerComponent extends PositionComponent
   int tier;
 
   double _cooldown = 0;
+  Sprite? _sprite;
 
   TowerTierStats get stats => definition.tiers[tier.clamp(0, definition.tiers.length - 1)];
   double get range => stats.range;
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    final asset = AppAssets.towerSprites[definition.id];
+    if (asset != null) {
+      try {
+        _sprite = await Sprite.load(asset);
+      } catch (_) {
+        _sprite = null;
+      }
+    }
+  }
 
   @override
   void update(double dt) {
@@ -40,6 +56,31 @@ abstract class TowerComponent extends PositionComponent
         _cooldown = 0.1;
       }
     }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    if (_sprite != null) {
+      _sprite!.renderRect(canvas, Rect.fromLTWH(0, 0, size.x, size.y));
+      return;
+    }
+    final gradient = const LinearGradient(
+        colors: [Colors.deepPurpleAccent, Colors.blueAccent],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(Rect.fromLTWH(0, 0, size.x, size.y));
+    final fill = Paint()..shader = gradient;
+    final border = Paint()
+      ..color = Colors.white.withOpacity(0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.x, size.y),
+      const Radius.circular(12),
+    );
+    canvas.drawRRect(rect, fill);
+    canvas.drawRRect(rect, border);
   }
 
   bool performAttack();

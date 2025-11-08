@@ -55,7 +55,9 @@ class GameOverOverlay extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: game.restart,
+                    onPressed: () {
+                      game.restart();
+                    },
                     child: const Text('Restart'),
                   ),
                 ],
