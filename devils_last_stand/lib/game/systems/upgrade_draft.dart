@@ -19,6 +19,8 @@ class UpgradeDraftSystem {
   final ValueNotifier<List<UpgradeDefinition>> choices =
       ValueNotifier<List<UpgradeDefinition>>(<UpgradeDefinition>[]);
 
+  List<UpgradeDefinition> get currentChoices => List.unmodifiable(choices.value);
+
   void presentChoices() {
     final pool = upgradeDatabase.definitions.values.toList();
     for (var i = pool.length - 1; i > 0; i--) {
@@ -32,6 +34,6 @@ class UpgradeDraftSystem {
 
   void pickUpgrade(UpgradeDefinition definition) {
     onUpgradeChosen(definition);
-    choices.value = const [];
+    choices.value = const <UpgradeDefinition>[];
   }
 }

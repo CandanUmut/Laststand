@@ -10,7 +10,7 @@ class OptionsScene extends StatefulWidget {
 }
 
 class _OptionsSceneState extends State<OptionsScene> {
-  final SaveManager saveManager = SaveManager();
+  final Storage storage = Storage.instance;
   double audioVolume = 0.7;
   bool reducedMotion = false;
   String colorBlindMode = 'none';
@@ -18,21 +18,29 @@ class _OptionsSceneState extends State<OptionsScene> {
   @override
   void initState() {
     super.initState();
-    saveManager.loadOptions().then((data) {
+    storage.init().then((_) {
+      if (!mounted) {
+        return;
+      }
       setState(() {
-        audioVolume = (data['audio'] as num?)?.toDouble() ?? 0.7;
-        reducedMotion = data['reducedMotion'] as bool? ?? false;
-        colorBlindMode = data['colorBlindMode'] as String? ?? 'none';
+        audioVolume =
+            storage.getDouble(Storage.keyOptionsVolume, defaultValue: 0.7);
+        reducedMotion = storage.getBool(Storage.keyOptionsReducedMotion);
+        colorBlindMode = storage.getString(
+          Storage.keyOptionsColorBlindMode,
+          defaultValue: 'none',
+        );
       });
     });
   }
 
   Future<void> _save() async {
-    await saveManager.saveOptions({
-      'audio': audioVolume,
-      'reducedMotion': reducedMotion,
-      'colorBlindMode': colorBlindMode,
-    });
+    await storage.init();
+    await Future.wait([
+      storage.setDouble(Storage.keyOptionsVolume, audioVolume),
+      storage.setBool(Storage.keyOptionsReducedMotion, reducedMotion),
+      storage.setString(Storage.keyOptionsColorBlindMode, colorBlindMode),
+    ]);
   }
 
   @override

@@ -28,8 +28,7 @@ import 'systems/tower_builder.dart';
 import 'systems/upgrade_draft.dart';
 import 'systems/wave_manager.dart';
 
-class AppGame extends FlameGame
-    with HasCollisionDetection, HasDraggables, HasTappables, TapCallbacks {
+class AppGame extends FlameGame with HasCollisionDetection {
   AppGame();
 
   static const hudOverlay = HudOverlay.overlayId;
@@ -64,6 +63,7 @@ class AppGame extends FlameGame
       ValueNotifier<int>(GameConstants.startingRings);
   final ValueNotifier<double> waveCountdown =
       ValueNotifier<double>(GameConstants.timeBetweenWaves);
+  final ValueNotifier<bool> gameOver = ValueNotifier<bool>(false);
 
   bool get isReady => _isReady;
   bool get isGameOver => _isGameOver;
@@ -112,6 +112,7 @@ class AppGame extends FlameGame
     final bool useJoystick = _shouldUseVirtualJoystick();
     input = InputController(enableVirtualJoystick: useJoystick);
     add(input);
+    add(_AppGameTapHandler());
 
     baseCore = BaseCore(maxHp: GameConstants.baseCoreMaxHp)
       ..position = Vector2.zero();
@@ -373,19 +374,22 @@ class AppGame extends FlameGame
     towerBuilder.prepareGhost(towerId);
   }
 
-  @override
-  void onTapUp(TapUpEvent event) {
-    super.onTapUp(event);
+  void handleTap(TapUpEvent event) {
     if (!_audioUnlocked) {
       _audioUnlocked = true;
     }
     if (_buildMode && _pendingTowerId != null) {
-      final worldPosition = camera.screenToWorld(event.canvasPosition);
+      final worldPosition = _screenToWorld(event.canvasPosition);
       final placed = towerBuilder.placeTower(_pendingTowerId!, worldPosition);
       if (placed) {
         _pendingTowerId = null;
       }
     }
+  }
+
+  Vector2 _screenToWorld(Vector2 screenPosition) {
+    final viewportPoint = camera.viewport.globalToLocal(screenPosition);
+    return camera.viewfinder.globalToLocal(viewportPoint);
   }
 
   void onSettingsChanged({double? volume, bool? reducedMotion}) {
@@ -402,6 +406,7 @@ class AppGame extends FlameGame
       return;
     }
     _isGameOver = true;
+    gameOver.value = true;
     pauseEngine();
     showGameOver();
   }
@@ -413,6 +418,7 @@ class AppGame extends FlameGame
     overlays.remove(gameOverOverlay);
 
     _isGameOver = false;
+    gameOver.value = false;
     _waveTimer = GameConstants.timeBetweenWaves;
     waveCountdown.value = _waveTimer;
     waveIndex.value = 1;
@@ -459,5 +465,13 @@ class AppGame extends FlameGame
       default:
         return false;
     }
+  }
+}
+
+class _AppGameTapHandler extends Component
+    with TapCallbacks, HasGameRef<AppGame> {
+  @override
+  void onTapUp(TapUpEvent event) {
+    gameRef.handleTap(event);
   }
 }

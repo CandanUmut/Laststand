@@ -71,7 +71,7 @@ class WaveManager extends Component {
       return;
     }
     _elapsed += dt;
-    final remaining = math.max(0, waveDuration - _elapsed);
+    final remaining = math.max(0.0, waveDuration - _elapsed);
     onWaveTimerChanged(remaining);
 
     if (_spawnIndex < _currentWave.length) {
