@@ -1,5 +1,7 @@
 import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
 
+import '../../core/assets.dart';
 import '../app_game.dart';
 import 'enemy.dart';
 import 'projectile.dart';
@@ -14,6 +16,17 @@ class AllyTurret extends PositionComponent with HasGameRef<AppGame> {
 
   final double baseDamage;
   double _cooldown = 0;
+  Sprite? _sprite;
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    try {
+      _sprite = await Sprite.load(AppAssets.allyTurret);
+    } catch (_) {
+      _sprite = null;
+    }
+  }
 
   @override
   void update(double dt) {
@@ -51,5 +64,25 @@ class AllyTurret extends PositionComponent with HasGameRef<AppGame> {
     );
     gameRef.world.add(projectile);
     return true;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    if (_sprite != null) {
+      _sprite!.renderRect(canvas, Rect.fromLTWH(0, 0, size.x, size.y));
+      return;
+    }
+    final fill = Paint()..color = Colors.greenAccent.withOpacity(0.75);
+    final border = Paint()
+      ..color = Colors.white.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.x, size.y),
+      const Radius.circular(10),
+    );
+    canvas.drawRRect(rect, fill);
+    canvas.drawRRect(rect, border);
   }
 }

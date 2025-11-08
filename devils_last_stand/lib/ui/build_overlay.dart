@@ -93,15 +93,10 @@ class BuildOverlay extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 12),
-                  ValueListenableBuilder<int>(
-                    valueListenable: game.unlockedRing,
-                    builder: (context, ring, _) {
-                      return Text(
-                        'Unlocked rings: $ring. Essence is spent immediately when placing towers.',
-                        style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
-                        textAlign: TextAlign.center,
-                      );
-                    },
+                  Text(
+                    'Available build tiles: ${game.towerBuilder.buildableCellCount}. Essence is spent immediately when placing towers.',
+                    style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton(

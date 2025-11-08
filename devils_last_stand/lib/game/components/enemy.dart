@@ -5,7 +5,9 @@ import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/assets.dart';
 import '../../data/enemy_defs.dart';
+import '../systems/pathfinding.dart';
 import 'base_core.dart';
 
 class EnemyComponent extends PositionComponent
@@ -13,17 +15,21 @@ class EnemyComponent extends PositionComponent
   EnemyComponent({
     required this.definition,
     required this.target,
-  }) : super(size: Vector2.all(48), anchor: Anchor.center) {
+    PathNavigator? navigator,
+  })  : _navigator = navigator,
+        super(size: Vector2.all(48), anchor: Anchor.center) {
     _health = definition.health;
   }
 
   final EnemyDefinition definition;
   final BaseCore target;
+  final PathNavigator? _navigator;
 
   late double _health;
   final double _speedEpsilon = 0.0001;
   double _speedMultiplier = 1;
   double _slowTimer = 0;
+  Sprite? _sprite;
 
   void Function(EnemyComponent enemy, Map<String, double> drops)? onDeath;
   VoidCallback? onReachedCore;
@@ -34,6 +40,14 @@ class EnemyComponent extends PositionComponent
   Future<void> onLoad() async {
     await super.onLoad();
     add(CircleHitbox.relative(0.75, parentSize: size));
+    final asset = AppAssets.enemySprites[definition.id];
+    if (asset != null) {
+      try {
+        _sprite = await Sprite.load(asset);
+      } catch (_) {
+        _sprite = null;
+      }
+    }
   }
 
   @override
@@ -45,16 +59,29 @@ class EnemyComponent extends PositionComponent
         _speedMultiplier = 1;
       }
     }
-    final dir = _toCore;
-    if (dir.length2 > _speedEpsilon) {
-      dir.normalize();
-      position += dir * (definition.speed * _speedMultiplier) * dt;
+    if (_navigator != null) {
+      final step = _navigator!.stepTowards(position);
+      if (!step.isZero()) {
+        position += step * (definition.speed * _speedMultiplier) * dt;
+      } else {
+        _moveDirectlyToCore(dt);
+      }
+    } else {
+      _moveDirectlyToCore(dt);
     }
 
     if (position.distanceTo(target.position) <=
         (target.size.x + size.x) * 0.35) {
       onReachedCore?.call();
       removeFromParent();
+    }
+  }
+
+  void _moveDirectlyToCore(double dt) {
+    final dir = _toCore;
+    if (dir.length2 > _speedEpsilon) {
+      dir.normalize();
+      position += dir * (definition.speed * _speedMultiplier) * dt;
     }
   }
 
@@ -76,7 +103,11 @@ class EnemyComponent extends PositionComponent
     super.render(canvas);
     final paint = Paint()..color = _colorForEnemy();
     final shape = _shapeForEnemy();
-    canvas.drawPath(shape, paint);
+    if (_sprite != null) {
+      _sprite!.renderRect(canvas, Rect.fromLTWH(0, 0, size.x, size.y));
+    } else {
+      canvas.drawPath(shape, paint);
+    }
 
     if (definition.isElite) {
       final border = Paint()

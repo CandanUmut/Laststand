@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/assets.dart';
 import '../../core/constants.dart';
 import '../app_game.dart';
 import 'player.dart';
@@ -23,11 +24,20 @@ class Pickup extends PositionComponent
 
   double _age = 0;
   final double _lifetime = 20;
+  Sprite? _sprite;
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
     add(CircleHitbox.relative(0.7, parentSize: size));
+    final asset = AppAssets.pickupSprites[type];
+    if (asset != null) {
+      try {
+        _sprite = await Sprite.load(asset);
+      } catch (_) {
+        _sprite = null;
+      }
+    }
   }
 
   @override
@@ -62,6 +72,11 @@ class Pickup extends PositionComponent
     super.render(canvas);
     final w = size.x;
     final h = size.y;
+    if (_sprite != null) {
+      _sprite!.renderRect(canvas, Rect.fromLTWH(0, 0, w, h));
+      return;
+    }
+
     final shape = Path();
     if (type == 'essence') {
       shape

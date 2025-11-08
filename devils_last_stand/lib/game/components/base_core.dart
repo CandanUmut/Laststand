@@ -6,6 +6,8 @@ import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/assets.dart';
+
 class BaseCore extends PositionComponent with CollisionCallbacks {
   BaseCore({
     this.maxHp = 100,
@@ -16,16 +18,26 @@ class BaseCore extends PositionComponent with CollisionCallbacks {
   final int maxHp;
   final ValueNotifier<int> hp;
   VoidCallback? onDestroyed;
+  Sprite? _sprite;
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
     add(CircleHitbox.relative(0.8, parentSize: size));
+    try {
+      _sprite = await Sprite.load(AppAssets.baseCore);
+    } catch (_) {
+      _sprite = null;
+    }
   }
 
   @override
   void render(Canvas canvas) {
     super.render(canvas);
+    if (_sprite != null) {
+      _sprite!.renderRect(canvas, Rect.fromLTWH(0, 0, size.x, size.y));
+      return;
+    }
     final center = Offset(size.x / 2, size.y / 2);
     final outerRadius = size.x / 2;
     final innerRadius = outerRadius * 0.6;

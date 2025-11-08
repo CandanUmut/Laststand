@@ -5,6 +5,7 @@ import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/assets.dart';
 import '../../core/constants.dart';
 import '../../core/input.dart';
 import '../app_game.dart';
@@ -34,9 +35,10 @@ class Player extends PositionComponent
   bool _isDashing = false;
   Vector2 _dashDirection = Vector2.zero();
   Vector2 _lastMoveDirection = Vector2(0, 1);
+  Sprite? _sprite;
 
   Rect get _worldBounds {
-    final size = GameConstants.worldSize;
+    final size = gameRef.worldSize;
     return Rect.fromCenter(
       center: Offset.zero,
       width: size.x - this.size.x,
@@ -52,6 +54,11 @@ class Player extends PositionComponent
   Future<void> onLoad() async {
     await super.onLoad();
     add(CircleHitbox.relative(0.7, parentSize: size));
+    try {
+      _sprite = await Sprite.load(AppAssets.playerShip);
+    } catch (_) {
+      _sprite = null;
+    }
   }
 
   @override
@@ -199,32 +206,36 @@ class Player extends PositionComponent
     final width = size.x;
     final height = size.y;
 
-    final body = Path()
-      ..moveTo(width / 2, 0)
-      ..lineTo(width, height * 0.72)
-      ..lineTo(width * 0.58, height)
-      ..lineTo(width * 0.42, height)
-      ..lineTo(0, height * 0.72)
-      ..close();
+    if (_sprite != null) {
+      _sprite!.renderRect(canvas, Rect.fromLTWH(0, 0, width, height));
+    } else {
+      final body = Path()
+        ..moveTo(width / 2, 0)
+        ..lineTo(width, height * 0.72)
+        ..lineTo(width * 0.58, height)
+        ..lineTo(width * 0.42, height)
+        ..lineTo(0, height * 0.72)
+        ..close();
 
-    final bodyPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Colors.lightBlueAccent, Colors.blueAccent],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(Rect.fromLTWH(0, 0, width, height));
+      final bodyPaint = Paint()
+        ..shader = const LinearGradient(
+          colors: [Colors.lightBlueAccent, Colors.blueAccent],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ).createShader(Rect.fromLTWH(0, 0, width, height));
 
-    final canopy = Path()
-      ..moveTo(width / 2, height * 0.18)
-      ..lineTo(width * 0.66, height * 0.58)
-      ..lineTo(width * 0.34, height * 0.58)
-      ..close();
+      final canopy = Path()
+        ..moveTo(width / 2, height * 0.18)
+        ..lineTo(width * 0.66, height * 0.58)
+        ..lineTo(width * 0.34, height * 0.58)
+        ..close();
 
-    final canopyPaint = Paint()
-      ..color = Colors.white.withOpacity(0.65);
+      final canopyPaint = Paint()
+        ..color = Colors.white.withOpacity(0.65);
 
-    canvas.drawPath(body, bodyPaint);
-    canvas.drawPath(canopy, canopyPaint);
+      canvas.drawPath(body, bodyPaint);
+      canvas.drawPath(canopy, canopyPaint);
+    }
 
     if (isInvincible) {
       final aura = Paint()

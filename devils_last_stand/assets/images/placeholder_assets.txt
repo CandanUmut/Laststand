@@ -1,0 +1,14 @@
+# List of image files to provide for the game sprites.
+# Add image files with these exact names into this directory.
+ally_turret.png
+base_core.png
+enemy_brute.png
+enemy_imp_bomber.png
+enemy_skitterling.png
+player_ship.png
+pickup_essence.png
+pickup_sigil.png
+tower_bolt_spire.png
+tower_ember_sprayer.png
+tower_frost_lattice.png
+tower_redeemer_totem.png

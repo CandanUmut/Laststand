@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 /// Global configuration shared across systems.
 class GameConstants {
   static const double gridSize = 64;
-  static const int startingRings = 1;
+  static const int startingRings = 13;
+  static const int mazeColumns = 27;
+  static const int mazeRows = 19;
   static const double timeBetweenWaves = 18;
   static const double waveDurationSeconds = 32;
   static const double dashCooldownSeconds = 1.0;
@@ -16,7 +18,8 @@ class GameConstants {
   static const int baseCoreMaxHp = 200;
   static const int redeemerLimit = 1;
 
-  static final Vector2 worldSize = Vector2(1600, 1200);
+  static final Vector2 worldSize =
+      Vector2(mazeColumns * gridSize, mazeRows * gridSize);
 }
 
 /// Shared palette to keep the UI cohesive until art lands.

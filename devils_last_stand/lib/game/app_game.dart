@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
@@ -18,12 +19,16 @@ import '../ui/hud.dart';
 import '../ui/settings_overlay.dart';
 import '../ui/upgrade_overlay.dart';
 import 'components/base_core.dart';
+import 'components/maze.dart';
 import 'components/enemy.dart';
 import 'components/pickup.dart';
 import 'components/player.dart';
 import 'components/projectile.dart';
 import 'components/tower.dart';
+import 'systems/level_layout.dart';
 import 'systems/ring_expansion.dart';
+import 'systems/maze_generator.dart';
+import 'systems/pathfinding.dart';
 import 'systems/tower_builder.dart';
 import 'systems/upgrade_draft.dart';
 import 'systems/wave_manager.dart';
@@ -43,8 +48,8 @@ class AppGame extends FlameGame
   // Create the camera (no cascades here)
   late final CameraComponent camera = CameraComponent.withFixedResolution(
     world: world,
-    width: 960,
-    height: 540,
+    width: 1280,
+    height: 720,
   );
 
   late final InputController input;
@@ -59,6 +64,9 @@ class AppGame extends FlameGame
   late final TowerBuilderSystem towerBuilder;
   late final RingExpansionSystem ringExpansion;
   late final UpgradeDraftSystem upgradeDraft;
+  late final MazeGenerator mazeGenerator;
+  LevelLayout? _currentLayout;
+  MazeComponent? _mazeComponent;
 
   final Storage storage = Storage.instance;
   final GameRng rng = GameRng();
@@ -90,6 +98,13 @@ class AppGame extends FlameGame
   final Vector2 _worldSize = GameConstants.worldSize.clone();
   final Map<String, bool> _towerTechFlags = <String, bool>{};
 
+  Vector2 get worldSize => _worldSize.clone();
+  Rect get worldBounds => Rect.fromCenter(
+        center: Offset.zero,
+        width: _worldSize.x,
+        height: _worldSize.y,
+      );
+
   @override
   Color backgroundColor() => GamePalette.background;
 
@@ -106,13 +121,20 @@ class AppGame extends FlameGame
 
     // ✅ Set viewfinder properties on the camera here
     camera.viewfinder.anchor = Anchor.center;
-    camera.viewfinder.zoom = 1.05;
+    camera.viewfinder.zoom = 0.82;
 
     ringExpansion = RingExpansionSystem(
       startingRings: GameConstants.startingRings,
       tileSize: GameConstants.gridSize,
     );
     add(ringExpansion);
+
+    mazeGenerator = MazeGenerator(
+      columns: GameConstants.mazeColumns,
+      rows: GameConstants.mazeRows,
+      tileSize: GameConstants.gridSize,
+      rng: rng,
+    );
 
     final bool useJoystick = _shouldUseVirtualJoystick();
     input = InputController(enableVirtualJoystick: useJoystick);
@@ -133,7 +155,7 @@ class AppGame extends FlameGame
 
     player = Player(
       input: input,
-    )..position = Vector2(0, -GameConstants.gridSize * 2);
+    )..position = Vector2.zero();
     await world.add(player);
 
     // Follow the player with the camera
@@ -146,6 +168,8 @@ class AppGame extends FlameGame
       crackedSigils: crackedSigils,
     );
     await add(towerBuilder);
+
+    await _generateAndApplyLayout(preserveTowers: false);
 
     upgradeDraft = UpgradeDraftSystem(
       upgradeDatabase: upgradeDatabase,
@@ -167,9 +191,7 @@ class AppGame extends FlameGame
 
     essence.value = 0;
     storage.setInt(Storage.keyMetaCurrency, essence.value);
-    unlockedRing.value =
-        math.max(GameConstants.startingRings, storage.getInt(Storage.keyMetaUnlocks));
-    ringExpansion.unlockedRings = unlockedRing.value;
+    unlockedRing.value = ringExpansion.unlockedRings;
 
     overlays.add(hudOverlay);
     _isReady = true;
@@ -192,15 +214,24 @@ class AppGame extends FlameGame
   }
 
   Future<void> _spawnEnemy(EnemyDefinition definition) async {
-    final spawnDistance = _worldSize.x * 0.45;
-    final angle = rng.nextDouble() * math.pi * 2;
-    final spawnPosition = Vector2(
-      math.cos(angle) * spawnDistance,
-      math.sin(angle) * spawnDistance,
-    );
+    final layout = _currentLayout;
+    Vector2 spawnPosition;
+    PathNavigator? navigator;
+    if (layout != null) {
+      spawnPosition = layout.spawnPosition.clone();
+      navigator = layout.pathTargets.isNotEmpty ? layout.createNavigator() : null;
+    } else {
+      final spawnDistance = _worldSize.x * 0.45;
+      final angle = rng.nextDouble() * math.pi * 2;
+      spawnPosition = Vector2(
+        math.cos(angle) * spawnDistance,
+        math.sin(angle) * spawnDistance,
+      );
+    }
     final enemy = EnemyComponent(
       definition: definition,
       target: baseCore,
+      navigator: navigator,
     )..position = spawnPosition;
     enemy.onDeath = (enemy, drops) {
       _activeEnemies = math.max(0, _activeEnemies - 1);
@@ -247,6 +278,39 @@ class AppGame extends FlameGame
     storage.setInt(Storage.keyMetaCurrency, essence.value);
   }
 
+  Future<void> _generateAndApplyLayout({bool preserveTowers = true}) async {
+    final layout = mazeGenerator.generate();
+    _currentLayout = layout;
+    _worldSize.setFrom(layout.worldSize);
+
+    _mazeComponent?.removeFromParent();
+    final maze = MazeComponent(layout: layout);
+    _mazeComponent = maze;
+    await world.add(maze);
+
+    final maxRing = math.max(layout.columns ~/ 2, layout.rows ~/ 2);
+    ringExpansion.unlockedRings = math.max(ringExpansion.unlockedRings, maxRing);
+    unlockedRing.value = ringExpansion.unlockedRings;
+
+    if (!preserveTowers) {
+      towerBuilder.reset();
+    }
+    towerBuilder.setBuildableCells(layout.buildableCells);
+
+    baseCore.position = Vector2.zero();
+    player.resetState(_playerSpawnForLayout(layout));
+  }
+
+  Vector2 _playerSpawnForLayout(LevelLayout layout) {
+    if (layout.pathTargets.isEmpty) {
+      return Vector2(0, -GameConstants.gridSize * 2);
+    }
+    if (layout.pathTargets.length > 1) {
+      return layout.pathTargets[layout.pathTargets.length - 2].clone();
+    }
+    return layout.pathTargets.last.clone() + Vector2(0, -GameConstants.gridSize * 0.75);
+  }
+
   bool spendEssence(int amount) {
     if (essence.value < amount) {
       return false;
@@ -270,14 +334,17 @@ class AppGame extends FlameGame
     }
     _buildMode = false;
     towerBuilder.clearGhost();
-    ringExpansion.unlockNextRing();
-    unlockedRing.value = ringExpansion.unlockedRings;
-    storage.setInt(Storage.keyMetaUnlocks, unlockedRing.value);
     upgradeDraft.presentChoices();
     showUpgradeOverlay();
   }
 
   void _startNextWave() {
+    if (overlays.isActive(buildOverlay)) {
+      overlays.remove(buildOverlay);
+    }
+    _buildMode = false;
+    towerBuilder.clearGhost();
+    _pendingTowerId = null;
     waveManager.startNextWave();
     _waveTimer = waveManager.waveDuration;
     waveCountdown.value = _waveTimer;
@@ -335,8 +402,14 @@ class AppGame extends FlameGame
   void finishUpgradeDraft() {
     overlays.remove(upgradeOverlay);
     resumeEngine();
-    _waveTimer = 0;
-    _startNextWave();
+    _buildMode = true;
+    towerBuilder.clearGhost();
+    if (!overlays.isActive(buildOverlay)) {
+      overlays.add(buildOverlay);
+    }
+    _pendingTowerId = null;
+    _waveTimer = GameConstants.timeBetweenWaves;
+    waveCountdown.value = _waveTimer;
   }
 
   void showUpgradeOverlay() {
@@ -416,7 +489,7 @@ class AppGame extends FlameGame
     showGameOver();
   }
 
-  void restart() {
+  Future<void> restart() async {
     overlays.remove(upgradeOverlay);
     overlays.remove(buildOverlay);
     overlays.remove(settingsOverlay);
@@ -431,8 +504,6 @@ class AppGame extends FlameGame
 
     baseCore.reset();
     coreHp.value = baseCore.hp.value;
-
-    player.resetState(Vector2(0, -GameConstants.gridSize * 2));
 
     towerBuilder.reset();
     crackedSigils.value = 0;
@@ -454,6 +525,12 @@ class AppGame extends FlameGame
     for (final projectile in projectiles) {
       projectile.removeFromParent();
     }
+
+    waveManager.isWaveRunning = false;
+    _buildMode = false;
+    towerBuilder.clearGhost();
+
+    await _generateAndApplyLayout(preserveTowers: false);
 
     resumeEngine();
     overlays.add(hudOverlay);
