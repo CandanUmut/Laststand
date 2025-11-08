@@ -37,8 +37,15 @@ class AppGame extends FlameGame with HasCollisionDetection {
   static const settingsOverlay = SettingsOverlay.overlayId;
   static const gameOverOverlay = 'GameOverOverlay';
 
-  late final World world;
-  late final CameraComponent camera;
+  final World world = World();
+  late final CameraComponent camera = CameraComponent.withFixedResolution(
+    world: world,
+    width: 960,
+    height: 540,
+  )
+    ..viewfinder
+        ..anchor = Anchor.center
+        ..zoom = 1.05;
   late final InputController input;
   late final BaseCore baseCore;
   late final Player player;
@@ -94,13 +101,6 @@ class AppGame extends FlameGame with HasCollisionDetection {
     towerDatabase = await TowerDatabase.load();
     upgradeDatabase = await UpgradeDatabase.load();
 
-    world = World();
-    camera = CameraComponent.withFixedResolution(
-      world: world,
-      width: 960,
-      height: 540,
-    )..viewfinder.anchor = Anchor.center;
-    camera.viewfinder.zoom = 1.05;
     addAll([world, camera]);
 
     ringExpansion = RingExpansionSystem(
