@@ -38,14 +38,14 @@ class AppGame extends FlameGame with HasCollisionDetection {
   static const gameOverOverlay = 'GameOverOverlay';
 
   final World world = World();
+
+  // Create the camera (no cascades here)
   late final CameraComponent camera = CameraComponent.withFixedResolution(
     world: world,
     width: 960,
     height: 540,
-  )
-    ..viewfinder
-        ..anchor = Anchor.center
-        ..zoom = 1.05;
+  );
+
   late final InputController input;
   late final BaseCore baseCore;
   late final Player player;
@@ -67,9 +67,9 @@ class AppGame extends FlameGame with HasCollisionDetection {
   final ValueNotifier<int> crackedSigils = ValueNotifier<int>(0);
   final ValueNotifier<int> waveIndex = ValueNotifier<int>(1);
   final ValueNotifier<int> unlockedRing =
-      ValueNotifier<int>(GameConstants.startingRings);
+  ValueNotifier<int>(GameConstants.startingRings);
   final ValueNotifier<double> waveCountdown =
-      ValueNotifier<double>(GameConstants.timeBetweenWaves);
+  ValueNotifier<double>(GameConstants.timeBetweenWaves);
   final ValueNotifier<bool> gameOver = ValueNotifier<bool>(false);
 
   bool get isReady => _isReady;
@@ -103,6 +103,10 @@ class AppGame extends FlameGame with HasCollisionDetection {
 
     addAll([world, camera]);
 
+    // ✅ Set viewfinder properties on the camera here
+    camera.viewfinder.anchor = Anchor.center;
+    camera.viewfinder.zoom = 1.05;
+
     ringExpansion = RingExpansionSystem(
       startingRings: GameConstants.startingRings,
       tileSize: GameConstants.gridSize,
@@ -128,9 +132,10 @@ class AppGame extends FlameGame with HasCollisionDetection {
 
     player = Player(
       input: input,
-    )
-      ..position = Vector2(0, -GameConstants.gridSize * 2);
+    )..position = Vector2(0, -GameConstants.gridSize * 2);
     await world.add(player);
+
+    // Follow the player with the camera
     camera.follow(player);
 
     towerBuilder = TowerBuilderSystem(
@@ -195,8 +200,7 @@ class AppGame extends FlameGame with HasCollisionDetection {
     final enemy = EnemyComponent(
       definition: definition,
       target: baseCore,
-    )
-      ..position = spawnPosition;
+    )..position = spawnPosition;
     enemy.onDeath = (enemy, drops) {
       _activeEnemies = math.max(0, _activeEnemies - 1);
       _handleEnemyDrops(drops, enemy.position, definition.isElite);
@@ -211,7 +215,8 @@ class AppGame extends FlameGame with HasCollisionDetection {
     await world.add(enemy);
   }
 
-  void _handleEnemyDrops(Map<String, double> drops, Vector2 position, bool elite) {
+  void _handleEnemyDrops(
+      Map<String, double> drops, Vector2 position, bool elite) {
     drops.forEach((key, value) {
       final amount = value.round();
       if (amount <= 0) {
@@ -220,8 +225,7 @@ class AppGame extends FlameGame with HasCollisionDetection {
       final pickup = Pickup(
         type: key,
         amount: amount,
-      )
-        ..position = position.clone();
+      )..position = position.clone();
       pickup.onCollected = () {
         if (key == 'essence') {
           addEssence(amount);
