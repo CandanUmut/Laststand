@@ -31,8 +31,7 @@ class InputController extends Component
         background:
             CircleComponent(radius: 46, paint: Paint()..color = const Color(0x55FFFFFF)),
         margin: const EdgeInsets.only(left: 32, bottom: 32),
-      )
-        ..positionType = PositionType.viewport;
+      );
       gameRef.add(_joystick!);
     }
   }

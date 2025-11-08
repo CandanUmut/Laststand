@@ -44,7 +44,8 @@ class Pickup extends CircleComponent with CollisionCallbacks, HasGameRef<AppGame
     if (distance < player.magnetRadius) {
       final direction = (player.position - position);
       if (!direction.isZero()) {
-        final speed = math.max(100, 280 * (1 - distance / player.magnetRadius));
+        final rawSpeed = 280 * (1 - distance / player.magnetRadius);
+        final speed = math.max(100, rawSpeed).toDouble();
         position += direction.normalized() * speed * dt;
       }
     }

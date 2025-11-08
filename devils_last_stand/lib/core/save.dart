@@ -13,6 +13,7 @@ class Storage {
   /// Keys that other systems rely on. Intentionally kept small for now.
   static const keyOptionsVolume = 'options.volume';
   static const keyOptionsReducedMotion = 'options.reducedMotion';
+  static const keyOptionsColorBlindMode = 'options.colorBlindMode';
   static const keyMetaCurrency = 'meta.currency';
   static const keyMetaUnlocks = 'meta.unlocks';
 
@@ -50,5 +51,13 @@ class Storage {
 
   Future<void> setBool(String key, bool value) {
     return _ensurePrefs.setBool(key, value);
+  }
+
+  String getString(String key, {String defaultValue = ''}) {
+    return _ensurePrefs.getString(key) ?? defaultValue;
+  }
+
+  Future<void> setString(String key, String value) {
+    return _ensurePrefs.setString(key, value);
   }
 }
