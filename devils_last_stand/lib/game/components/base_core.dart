@@ -26,10 +26,47 @@ class BaseCore extends PositionComponent with CollisionCallbacks {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    final radius = size.x / 2;
-    final center = Offset(radius, radius);
-    canvas.drawCircle(center, radius, Paint()..color = Colors.deepPurpleAccent);
-    canvas.drawCircle(center, radius * 0.6, Paint()..color = Colors.black.withOpacity(0.3));
+    final center = Offset(size.x / 2, size.y / 2);
+    final outerRadius = size.x / 2;
+    final innerRadius = outerRadius * 0.6;
+
+    final outerPath = Path();
+    final innerPath = Path();
+    for (var i = 0; i < 6; i++) {
+      final angle = math.pi / 2 + i * math.pi / 3;
+      final outerPoint = Offset(
+        center.dx + math.cos(angle) * outerRadius,
+        center.dy + math.sin(angle) * outerRadius,
+      );
+      final innerPoint = Offset(
+        center.dx + math.cos(angle) * innerRadius,
+        center.dy + math.sin(angle) * innerRadius,
+      );
+      if (i == 0) {
+        outerPath.moveTo(outerPoint.dx, outerPoint.dy);
+        innerPath.moveTo(innerPoint.dx, innerPoint.dy);
+      } else {
+        outerPath.lineTo(outerPoint.dx, outerPoint.dy);
+        innerPath.lineTo(innerPoint.dx, innerPoint.dy);
+      }
+    }
+    outerPath.close();
+    innerPath.close();
+
+    final outerPaint = Paint()
+      ..color = Colors.deepPurpleAccent.shade200
+      ..style = PaintingStyle.fill;
+    final borderPaint = Paint()
+      ..color = Colors.white.withOpacity(0.25)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    final innerPaint = Paint()
+      ..color = Colors.black.withOpacity(0.35)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(outerPath, outerPaint);
+    canvas.drawPath(outerPath, borderPaint);
+    canvas.drawPath(innerPath, innerPaint);
   }
 
   void takeDamage(int amount) {

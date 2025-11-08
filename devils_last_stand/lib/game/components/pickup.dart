@@ -9,11 +9,12 @@ import '../../core/constants.dart';
 import '../app_game.dart';
 import 'player.dart';
 
-class Pickup extends CircleComponent with CollisionCallbacks, HasGameRef<AppGame> {
+class Pickup extends PositionComponent
+    with CollisionCallbacks, HasGameRef<AppGame> {
   Pickup({
     required this.type,
     required this.amount,
-  }) : super(radius: 12, anchor: Anchor.center);
+  }) : super(size: Vector2.all(28), anchor: Anchor.center);
 
   final String type;
   final int amount;
@@ -26,7 +27,6 @@ class Pickup extends CircleComponent with CollisionCallbacks, HasGameRef<AppGame
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    paint = Paint()..color = type == 'essence' ? GamePalette.accent : GamePalette.success;
     add(CircleHitbox.relative(0.7, parentSize: size));
   }
 
@@ -55,5 +55,46 @@ class Pickup extends CircleComponent with CollisionCallbacks, HasGameRef<AppGame
     onCollected?.call();
     removeFromParent();
     // TODO(nova): play pickup SFX + floating text when audio unlocked.
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    final w = size.x;
+    final h = size.y;
+    final shape = Path();
+    if (type == 'essence') {
+      shape
+        ..moveTo(w / 2, 0)
+        ..lineTo(w, h / 2)
+        ..lineTo(w / 2, h)
+        ..lineTo(0, h / 2)
+        ..close();
+    } else {
+      shape
+        ..moveTo(w * 0.2, 0)
+        ..lineTo(w, h * 0.2)
+        ..lineTo(w * 0.8, h)
+        ..lineTo(0, h * 0.8)
+        ..close();
+    }
+
+    final fill = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          type == 'essence' ? GamePalette.accent : GamePalette.success,
+          (type == 'essence' ? GamePalette.accent : GamePalette.success)
+              .withOpacity(0.7),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    final border = Paint()
+      ..color = Colors.white.withOpacity(0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawPath(shape, fill);
+    canvas.drawPath(shape, border);
   }
 }

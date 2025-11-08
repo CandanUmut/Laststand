@@ -85,6 +85,11 @@ class Player extends PositionComponent
     final clampedX = position.x.clamp(bounds.left, bounds.right);
     final clampedY = position.y.clamp(bounds.top, bounds.bottom);
     position.setValues(clampedX, clampedY);
+
+    final facing = _isDashing && !_dashDirection.isZero()
+        ? _dashDirection
+        : _lastMoveDirection;
+    angle = math.atan2(facing.y, facing.x) + math.pi / 2;
   }
 
   void _handleDash(double dt) {
@@ -191,14 +196,49 @@ class Player extends PositionComponent
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    final radius = size.x / 2;
-    final center = Offset(radius, radius);
-    final bodyPaint = Paint()..color = Colors.lightBlueAccent;
-    canvas.drawCircle(center, radius, bodyPaint);
+    final width = size.x;
+    final height = size.y;
+
+    final body = Path()
+      ..moveTo(width / 2, 0)
+      ..lineTo(width, height * 0.72)
+      ..lineTo(width * 0.58, height)
+      ..lineTo(width * 0.42, height)
+      ..lineTo(0, height * 0.72)
+      ..close();
+
+    final bodyPaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Colors.lightBlueAccent, Colors.blueAccent],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(Rect.fromLTWH(0, 0, width, height));
+
+    final canopy = Path()
+      ..moveTo(width / 2, height * 0.18)
+      ..lineTo(width * 0.66, height * 0.58)
+      ..lineTo(width * 0.34, height * 0.58)
+      ..close();
+
+    final canopyPaint = Paint()
+      ..color = Colors.white.withOpacity(0.65);
+
+    canvas.drawPath(body, bodyPaint);
+    canvas.drawPath(canopy, canopyPaint);
+
     if (isInvincible) {
       final aura = Paint()
-        ..color = Colors.white.withOpacity(0.45);
-      canvas.drawCircle(center, radius, aura);
+        ..color = Colors.white.withOpacity(0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4;
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(width / 2, height / 2),
+          width: width * 1.2,
+          height: height * 1.2,
+        ),
+        aura,
+      );
     }
   }
 }
