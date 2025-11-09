@@ -66,6 +66,9 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                   divisions: 10,
                   label: _volume.toStringAsFixed(1),
                   onChanged: (value) {
+                    if (!mounted) {
+                      return;
+                    }
                     setState(() => _volume = value);
                     widget.game.onSettingsChanged(volume: value);
                   },
@@ -74,6 +77,9 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                 SwitchListTile(
                   value: _reducedMotion,
                   onChanged: (value) {
+                    if (!mounted) {
+                      return;
+                    }
                     setState(() => _reducedMotion = value);
                     widget.game.onSettingsChanged(reducedMotion: value);
                   },

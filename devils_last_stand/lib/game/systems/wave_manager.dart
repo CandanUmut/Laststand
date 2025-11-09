@@ -42,6 +42,7 @@ class WaveManager extends Component {
     }
     isWaveRunning = true;
     _elapsed = 0;
+    waveDuration = _durationForWave(waveIndex.value);
     onWaveTimerChanged(waveDuration);
     _currentWave
       ..clear()
@@ -58,7 +59,7 @@ class WaveManager extends Component {
     if (_enemiesRemaining <= 0 && _spawnIndex >= _currentWave.length) {
       final clearedWave = waveIndex.value;
       isWaveRunning = false;
-      waveIndex.value = math.min(10, waveIndex.value + 1);
+      waveIndex.value = waveIndex.value + 1;
       onWaveCompleted(clearedWave);
       onWaveTimerChanged(GameConstants.timeBetweenWaves);
     }
@@ -92,33 +93,76 @@ class WaveManager extends Component {
     final skitter = enemyDatabase.definitions['skitterling'];
     final brute = enemyDatabase.definitions['brute'];
     final bomber = enemyDatabase.definitions['imp_bomber'];
-    if (skitter == null || brute == null) {
+    final wraith = enemyDatabase.definitions['wraith'];
+    if (skitter == null) {
       return events;
     }
 
-    final baseCount = 6 + wave * 2;
-    for (var i = 0; i < baseCount; i++) {
-      final def = i % 5 == 0 && wave > 2 ? brute : skitter;
-      events.add(_SpawnEvent(def, 0.9));
+    final rng = math.Random(wave * 997);
+    final intensity = 1 + (wave - 1) * 0.18;
+    final speedScale = 1 + (wave - 1) * 0.03;
+    final damageScale = 1 + (wave - 1) * 0.12;
+    final baseCount = (10 + wave * 3).clamp(10, 140);
+    final delay = math.max(0.35, 0.95 - wave * 0.03);
+
+    final pool = <EnemyDefinition>[
+      _scaledDefinition(skitter, intensity, speedScale, damageScale),
+      if (wraith != null && wave >= 2)
+        _scaledDefinition(wraith, intensity * 0.9, speedScale * 1.25, damageScale * 0.9),
+      if (brute != null && wave >= 3)
+        _scaledDefinition(brute, intensity * 1.4, speedScale * 0.85, damageScale * 1.2),
+      if (bomber != null && wave % 4 == 0)
+        _scaledDefinition(bomber, intensity * 1.3, speedScale * 0.9, damageScale * 1.4),
+    ];
+
+    if (pool.isEmpty) {
+      return events;
     }
 
-    if (wave >= 4) {
-      for (var i = 0; i < wave ~/ 2; i++) {
-        events.add(_SpawnEvent(brute, 1.2));
+    for (var i = 0; i < baseCount; i++) {
+      final enemy = pool[rng.nextInt(pool.length)];
+      final variance = (rng.nextDouble() * 0.35) - 0.15;
+      events.add(_SpawnEvent(enemy, math.max(0.2, delay + variance)));
+      if (enemy.id == 'brute') {
+        events.add(_SpawnEvent(enemy, delay + 0.4));
       }
     }
 
-    if (wave == 5 && bomber != null) {
-      events.add(_SpawnEvent(bomber, 1.5));
-    }
-    if (wave == 10 && bomber != null) {
-      events
-        ..add(_SpawnEvent(brute, 1.2))
-        ..add(_SpawnEvent(brute, 1.2))
-        ..add(_SpawnEvent(bomber, 1.8));
+    final miniBossCount = (wave / 6).floor();
+    if (miniBossCount > 0 && brute != null) {
+      final eliteBrute = _scaledDefinition(brute, intensity * 2.1, speedScale, damageScale * 1.8,
+          eliteOverride: true);
+      for (var i = 0; i < miniBossCount; i++) {
+        events.add(_SpawnEvent(eliteBrute, delay * 2.5));
+      }
     }
 
     return events;
+  }
+
+  double _durationForWave(int wave) {
+    return GameConstants.waveDurationSeconds + wave * 2.5;
+  }
+
+  EnemyDefinition _scaledDefinition(
+    EnemyDefinition base,
+    double healthScale,
+    double speedScale,
+    double damageScale, {
+    bool? eliteOverride,
+  }) {
+    final drops = base.dropTable.map(
+      (key, value) => MapEntry(key, value * (0.8 + healthScale * 0.35)),
+    );
+    return EnemyDefinition(
+      id: base.id,
+      displayName: base.displayName,
+      speed: base.speed * speedScale,
+      health: base.health * healthScale,
+      damage: base.damage * damageScale,
+      isElite: eliteOverride ?? base.isElite,
+      dropTable: drops,
+    );
   }
 }
 

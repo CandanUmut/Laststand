@@ -1,14 +1,11 @@
-import 'dart:math';
+import 'dart:math' as math;
 
 import 'package:flame/components.dart';
-
-import 'pathfinding.dart';
 
 class LevelLayout {
   LevelLayout({
     required this.walkableGrid,
-    required this.pathTargets,
-    required this.spawnPosition,
+    required this.spawnCells,
     required this.buildableCells,
     required this.walkableCells,
     required this.worldSize,
@@ -16,19 +13,18 @@ class LevelLayout {
   });
 
   final List<List<bool>> walkableGrid;
-  final List<Vector2> pathTargets;
-  final Vector2 spawnPosition;
-  final Set<Point<int>> buildableCells;
-  final Set<Point<int>> walkableCells;
+  final List<math.Point<int>> spawnCells;
+  final Set<math.Point<int>> buildableCells;
+  final Set<math.Point<int>> walkableCells;
   final Vector2 worldSize;
   final double tileSize;
 
   int get columns => walkableGrid.isEmpty ? 0 : walkableGrid.first.length;
   int get rows => walkableGrid.length;
 
-  PathNavigator createNavigator() {
-    return PathNavigator(path: List<Vector2>.from(pathTargets));
-  }
+  bool isWalkable(math.Point<int> cell) => walkableCells.contains(cell);
 
-  bool isWalkable(Point<int> cell) => walkableCells.contains(cell);
+  Vector2 cellCenterWorld(math.Point<int> cell) {
+    return Vector2(cell.x * tileSize, cell.y * tileSize);
+  }
 }

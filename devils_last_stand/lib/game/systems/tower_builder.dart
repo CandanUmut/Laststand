@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +8,7 @@ import '../../data/tower_defs.dart';
 import '../app_game.dart';
 import '../components/tower.dart';
 import 'ring_expansion.dart';
+import 'pathfinding.dart';
 
 class TowerBuilderSystem extends Component with HasGameRef<AppGame> {
   TowerBuilderSystem({
@@ -22,18 +23,28 @@ class TowerBuilderSystem extends Component with HasGameRef<AppGame> {
   final ValueNotifier<int> essence;
   final ValueNotifier<int> crackedSigils;
 
-  final Map<Point<int>, TowerComponent> _towers = {};
-  final Set<Point<int>> _buildableCells = <Point<int>>{};
+  final Map<math.Point<int>, _PlacedTower> _towers = {};
+  final Set<math.Point<int>> _buildableCells = <math.Point<int>>{};
+  GridPathfinder? _pathfinding;
 
   int _redeemerCount = 0;
 
-  Iterable<TowerComponent> get towers => _towers.values;
+  Iterable<TowerComponent> get towers => _towers.values.map((entry) => entry.component);
   int get buildableCellCount => _buildableCells.length;
 
-  void setBuildableCells(Set<Point<int>> cells) {
+  void setBuildableCells(Set<math.Point<int>> cells) {
     _buildableCells
       ..clear()
       ..addAll(cells);
+  }
+
+  void setPathfinding(GridPathfinder pathfinding) {
+    _pathfinding = pathfinding;
+    for (final entry in _towers.entries) {
+      if (entry.value.blocksPath) {
+        _pathfinding?.blockCell(entry.key);
+      }
+    }
   }
 
   void prepareGhost(String towerId) {
@@ -54,10 +65,22 @@ class TowerBuilderSystem extends Component with HasGameRef<AppGame> {
       return false;
     }
     final cell = ringExpansion.worldToCell(worldPosition);
-    if (cell == const Point<int>(0, 0)) {
+    if (cell == const math.Point<int>(0, 0)) {
       return false;
     }
-    if (_buildableCells.isNotEmpty && !_buildableCells.contains(cell)) {
+    final isBlocking = definition.id == 'arcane_block';
+    if (isBlocking) {
+      final pathfinding = _pathfinding;
+      if (pathfinding == null) {
+        return false;
+      }
+      if (!pathfinding.layout.walkableCells.contains(cell)) {
+        return false;
+      }
+      if (!pathfinding.canBlockCell(cell)) {
+        return false;
+      }
+    } else if (_buildableCells.isNotEmpty && !_buildableCells.contains(cell)) {
       return false;
     }
     if (!ringExpansion.isCellUnlocked(cell)) {
@@ -81,7 +104,10 @@ class TowerBuilderSystem extends Component with HasGameRef<AppGame> {
     final tower = createTowerComponent(definition, cell)
       ..position = ringExpansion.cellToWorld(cell);
     gameRef.world.add(tower);
-    _towers[cell] = tower;
+    _towers[cell] = _PlacedTower(component: tower, blocksPath: isBlocking);
+    if (isBlocking) {
+      _pathfinding?.blockCell(cell);
+    }
     return true;
   }
 
@@ -89,16 +115,30 @@ class TowerBuilderSystem extends Component with HasGameRef<AppGame> {
     // Placeholder for future telemetry or once-per-run restrictions.
   }
 
-  void removeTowerAt(Point<int> cell) {
-    final tower = _towers.remove(cell);
-    tower?.removeFromParent();
+  void removeTowerAt(math.Point<int> cell) {
+    final removed = _towers.remove(cell);
+    if (removed == null) {
+      return;
+    }
+    if (removed.blocksPath) {
+      _pathfinding?.unblockCell(cell);
+    }
+    removed.component.removeFromParent();
   }
 
   void reset() {
-    for (final tower in _towers.values) {
-      tower.removeFromParent();
+    for (final entry in _towers.values) {
+      entry.component.removeFromParent();
     }
     _towers.clear();
     _redeemerCount = 0;
+    _pathfinding?.clear();
   }
+}
+
+class _PlacedTower {
+  _PlacedTower({required this.component, required this.blocksPath});
+
+  final TowerComponent component;
+  final bool blocksPath;
 }
