@@ -42,15 +42,20 @@ class BuildOverlay extends StatelessWidget {
                       return ValueListenableBuilder<int>(
                         valueListenable: game.crackedSigils,
                         builder: (context, sigils, __) {
+                          final towers = game.towerDatabase.definitions.values.toList()
+                            ..sort((a, b) => a.cost.compareTo(b.cost));
                           return Wrap(
                             spacing: 12,
                             runSpacing: 12,
                             alignment: WrapAlignment.center,
-                            children: game.towerDatabase.definitions.values.map((definition) {
+                            children: towers.map((definition) {
                               final cost = definition.cost;
                               final hasEssence = essenceValue >= cost;
                               final needsSigil = definition.id == 'redeemer_totem';
                               final hasSigil = sigils > 0;
+                              final special = definition.tiers.isNotEmpty
+                                  ? definition.tiers.first.special
+                                  : '';
                               return ElevatedButton(
                                 onPressed: hasEssence && (!needsSigil || hasSigil)
                                     ? () => game.selectTowerToBuild(definition.id)
@@ -75,6 +80,17 @@ class BuildOverlay extends StatelessWidget {
                                         'Cost: $cost',
                                         style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
                                       ),
+                                      if (special.isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          special,
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: Colors.white60,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
                                       if (needsSigil)
                                         Text(
                                           'Requires Sigil',
@@ -94,7 +110,7 @@ class BuildOverlay extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Available build tiles: ${game.towerBuilder.buildableCellCount}. Essence is spent immediately when placing towers.',
+                    'Available build tiles: ${game.towerBuilder.buildableCellCount}. Arcane Barriers can be dropped directly on paths to open new routes, but at least one path must remain.',
                     style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
                     textAlign: TextAlign.center,
                   ),

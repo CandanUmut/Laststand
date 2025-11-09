@@ -231,6 +231,46 @@ class RedeemerTotemTower extends TowerComponent {
   }
 }
 
+class BarrierTower extends TowerComponent {
+  BarrierTower({
+    required super.definition,
+    required super.gridPosition,
+    super.tier,
+  }) : super(priority: -5);
+
+  @override
+  bool performAttack() => false;
+
+  @override
+  void update(double dt) {
+    // Intentionally no attack logic, but still call super to keep component lifecycle.
+    super.update(dt);
+  }
+
+  @override
+  void render(Canvas canvas) {
+    final rect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(0, 0, size.x, size.y),
+      topLeft: const Radius.circular(6),
+      topRight: const Radius.circular(6),
+      bottomLeft: const Radius.circular(12),
+      bottomRight: const Radius.circular(12),
+    );
+    final fill = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFF2B5876), Color(0xFF4E4376)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(rect.outerRect);
+    final border = Paint()
+      ..color = Colors.lightBlueAccent.withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawRRect(rect, fill);
+    canvas.drawRRect(rect, border);
+  }
+}
+
 TowerComponent createTowerComponent(
   TowerDefinition definition,
   Point<int> gridPosition,
@@ -244,6 +284,8 @@ TowerComponent createTowerComponent(
       return FrostLatticeTower(definition: definition, gridPosition: gridPosition);
     case 'redeemer_totem':
       return RedeemerTotemTower(definition: definition, gridPosition: gridPosition);
+    case 'arcane_block':
+      return BarrierTower(definition: definition, gridPosition: gridPosition);
     default:
       return BoltSpireTower(definition: definition, gridPosition: gridPosition);
   }

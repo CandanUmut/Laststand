@@ -65,6 +65,7 @@ class AppGame extends FlameGame
   late final RingExpansionSystem ringExpansion;
   late final UpgradeDraftSystem upgradeDraft;
   late final MazeGenerator mazeGenerator;
+  GridPathfinder? _pathfinder;
   LevelLayout? _currentLayout;
   MazeComponent? _mazeComponent;
 
@@ -189,7 +190,7 @@ class AppGame extends FlameGame
     );
     await add(waveManager);
 
-    essence.value = 0;
+    essence.value = 60;
     storage.setInt(Storage.keyMetaCurrency, essence.value);
     unlockedRing.value = ringExpansion.unlockedRings;
 
@@ -218,8 +219,26 @@ class AppGame extends FlameGame
     Vector2 spawnPosition;
     PathNavigator? navigator;
     if (layout != null) {
-      spawnPosition = layout.spawnPosition.clone();
-      navigator = layout.pathTargets.isNotEmpty ? layout.createNavigator() : null;
+      final pathfinder = _pathfinder;
+      if (pathfinder != null && pathfinder.spawnCells.isNotEmpty) {
+        final spawnOptions = pathfinder.spawnCells.toList(growable: false);
+        spawnOptions.shuffle(math.Random(rng.nextInt(1 << 31)));
+        math.Point<int>? chosenCell;
+        for (final option in spawnOptions) {
+          final nav = pathfinder.navigatorFromSpawn(option);
+          if (nav != null) {
+            navigator = nav;
+            chosenCell = option;
+            break;
+          }
+        }
+        chosenCell ??= spawnOptions.first;
+        spawnPosition = layout.cellCenterWorld(chosenCell).clone();
+        navigator ??= pathfinder.navigatorFromSpawn(chosenCell);
+      } else {
+        final fallbackCell = math.Point<int>(0, -(layout.rows ~/ 2));
+        spawnPosition = layout.cellCenterWorld(fallbackCell).clone();
+      }
     } else {
       final spawnDistance = _worldSize.x * 0.45;
       final angle = rng.nextDouble() * math.pi * 2;
@@ -283,6 +302,10 @@ class AppGame extends FlameGame
     _currentLayout = layout;
     _worldSize.setFrom(layout.worldSize);
 
+    final pathfinder = GridPathfinder(layout: layout);
+    _pathfinder = pathfinder;
+    towerBuilder.setPathfinding(pathfinder);
+
     _mazeComponent?.removeFromParent();
     final maze = MazeComponent(layout: layout);
     _mazeComponent = maze;
@@ -302,13 +325,20 @@ class AppGame extends FlameGame
   }
 
   Vector2 _playerSpawnForLayout(LevelLayout layout) {
-    if (layout.pathTargets.isEmpty) {
-      return Vector2(0, -GameConstants.gridSize * 2);
+    math.Point<int>? closest;
+    double bestDistance = double.infinity;
+    for (final cell in layout.walkableCells) {
+      final offset = Vector2(cell.x.toDouble(), cell.y.toDouble());
+      final distance = offset.distanceToSquared(Vector2(0, -2));
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        closest = cell;
+      }
     }
-    if (layout.pathTargets.length > 1) {
-      return layout.pathTargets[layout.pathTargets.length - 2].clone();
+    if (closest != null) {
+      return layout.cellCenterWorld(closest);
     }
-    return layout.pathTargets.last.clone() + Vector2(0, -GameConstants.gridSize * 0.75);
+    return Vector2(0, -GameConstants.gridSize * 1.5);
   }
 
   bool spendEssence(int amount) {
@@ -507,7 +537,7 @@ class AppGame extends FlameGame
 
     towerBuilder.reset();
     crackedSigils.value = 0;
-    essence.value = 0;
+    essence.value = 60;
     storage.setInt(Storage.keyMetaCurrency, essence.value);
     _pendingTowerId = null;
     ringExpansion.unlockedRings = GameConstants.startingRings;

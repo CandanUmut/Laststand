@@ -19,11 +19,13 @@ class MazeComponent extends PositionComponent {
   final LevelLayout layout;
 
   late final Paint _pathPaint = Paint()
-    ..color = Colors.blueGrey.shade700.withOpacity(0.6);
+    ..color = const Color(0xFF1B2A49).withOpacity(0.85);
   late final Paint _wallPaint = Paint()
     ..color = Colors.black.withOpacity(0.55);
   late final Paint _buildPaint = Paint()
     ..color = GamePalette.accent.withOpacity(0.08);
+  late final Paint _spawnPaint = Paint()
+    ..color = GamePalette.accent.withOpacity(0.45);
 
   @override
   void render(Canvas canvas) {
@@ -53,6 +55,12 @@ class MazeComponent extends PositionComponent {
       final rect = Rect.fromLTWH(worldX + tileSize * 0.2, worldY + tileSize * 0.2,
           tileSize * 0.6, tileSize * 0.6);
       canvas.drawRect(rect, _buildPaint);
+    }
+
+    for (final spawn in layout.spawnCells) {
+      final worldX = (spawn.x + layout.columns ~/ 2) * tileSize - offsetX + tileSize / 2;
+      final worldY = (spawn.y + layout.rows ~/ 2) * tileSize - offsetY + tileSize / 2;
+      canvas.drawCircle(Offset(worldX, worldY), tileSize * 0.3, _spawnPaint);
     }
   }
 }

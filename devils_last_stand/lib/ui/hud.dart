@@ -47,7 +47,7 @@ class HudOverlay extends StatelessWidget {
                             valueListenable: game.waveIndex,
                             builder: (context, wave, _) {
                               return Text(
-                                'Wave ${wave.clamp(1, 10)} / 10',
+                                'Wave $wave',
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,

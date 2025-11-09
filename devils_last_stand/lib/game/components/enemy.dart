@@ -17,7 +17,7 @@ class EnemyComponent extends PositionComponent
     required this.target,
     PathNavigator? navigator,
   })  : _navigator = navigator,
-        super(size: Vector2.all(48), anchor: Anchor.center) {
+        super(size: Vector2.all(60), anchor: Anchor.center) {
     _health = definition.health;
   }
 

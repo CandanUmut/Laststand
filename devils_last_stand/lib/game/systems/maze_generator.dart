@@ -1,5 +1,4 @@
-import 'dart:collection';
-import 'dart:math';
+import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 
@@ -22,9 +21,9 @@ class MazeGenerator {
 
   LevelLayout generate() {
     final grid = List.generate(rows, (_) => List.filled(columns, false));
-    final visited = <Point<int>>{};
-    final start = Point<int>(columns ~/ 2, rows ~/ 2);
-    final stack = <Point<int>>[start];
+    final visited = <math.Point<int>>{};
+    final start = math.Point<int>(columns ~/ 2, rows ~/ 2);
+    final stack = <math.Point<int>>[start];
 
     grid[start.y][start.x] = true;
     visited.add(start);
@@ -42,20 +41,18 @@ class MazeGenerator {
       stack.add(chosen);
     }
 
-    final spawnCell = _pickSpawnCell(grid);
-    final pathCells = _pathBetween(grid, spawnCell, start);
+    _punchAdditionalLoops(grid);
 
-    final spawnPosition = _toWorld(spawnCell);
-    final pathTargets = pathCells.skip(1).map(_toWorld).toList(growable: false);
+    final spawnCells = _pickSpawnCells(grid, 3);
 
-    final buildable = <Point<int>>{};
-    final walkable = <Point<int>>{};
+    final buildable = <math.Point<int>>{};
+    final walkable = <math.Point<int>>{};
     for (var y = 0; y < rows; y++) {
       for (var x = 0; x < columns; x++) {
         if (!grid[y][x]) {
           continue;
         }
-        final cell = Point<int>(x, y);
+        final cell = math.Point<int>(x, y);
         walkable.add(_toRelative(cell));
         for (final neighbor in _cardinalNeighbors(cell)) {
           if (_inBounds(neighbor) && !grid[neighbor.y][neighbor.x]) {
@@ -69,8 +66,7 @@ class MazeGenerator {
 
     return LevelLayout(
       walkableGrid: grid,
-      pathTargets: pathTargets,
-      spawnPosition: spawnPosition,
+      spawnCells: spawnCells.map(_toRelative).toList(growable: false),
       buildableCells: buildable,
       walkableCells: walkable,
       worldSize: worldSize,
@@ -78,10 +74,29 @@ class MazeGenerator {
     );
   }
 
-  List<Point<int>> _unvisitedNeighbors(Point<int> cell, Set<Point<int>> visited) {
-    final neighbors = <Point<int>>[];
+  void _punchAdditionalLoops(List<List<bool>> grid) {
+    final attempts = (columns * rows * 0.12).round();
+    for (var i = 0; i < attempts; i++) {
+      final x = rng.nextInt(columns - 2) + 1;
+      final y = rng.nextInt(rows - 2) + 1;
+      if (grid[y][x]) {
+        continue;
+      }
+      final walkableNeighbors = _cardinalNeighbors(math.Point<int>(x, y))
+          .where((neighbor) => grid[neighbor.y][neighbor.x])
+          .length;
+      if (walkableNeighbors >= 2) {
+        grid[y][x] = true;
+      }
+    }
+  }
+
+  List<math.Point<int>> _unvisitedNeighbors(
+      math.Point<int> cell, Set<math.Point<int>> visited) {
+    final neighbors = <math.Point<int>>[];
     for (final direction in _directionOffsets) {
-      final candidate = Point<int>(cell.x + direction.x * 2, cell.y + direction.y * 2);
+      final candidate =
+          math.Point<int>(cell.x + direction.x * 2, cell.y + direction.y * 2);
       if (_inBounds(candidate) && !visited.contains(candidate)) {
         neighbors.add(candidate);
       }
@@ -89,125 +104,75 @@ class MazeGenerator {
     return neighbors;
   }
 
-  void _carvePath(List<List<bool>> grid, Point<int> from, Point<int> to) {
-    final between = Point<int>((from.x + to.x) ~/ 2, (from.y + to.y) ~/ 2);
+  void _carvePath(List<List<bool>> grid, math.Point<int> from, math.Point<int> to) {
+    final between = math.Point<int>((from.x + to.x) ~/ 2, (from.y + to.y) ~/ 2);
     grid[between.y][between.x] = true;
     grid[to.y][to.x] = true;
   }
 
-  Point<int> _pickSpawnCell(List<List<bool>> grid) {
-    final borderCells = <Point<int>>[];
+  List<math.Point<int>> _pickSpawnCells(List<List<bool>> grid, int desired) {
+    final borderCells = <math.Point<int>>[];
     for (var y = 0; y < rows; y++) {
       for (var x = 0; x < columns; x++) {
         if (!grid[y][x]) {
           continue;
         }
         if (x == 0 || y == 0 || x == columns - 1 || y == rows - 1) {
-          borderCells.add(Point<int>(x, y));
+          borderCells.add(math.Point<int>(x, y));
         }
       }
     }
     if (borderCells.isEmpty) {
-      final candidates = <Point<int>>[];
-      for (var y = 0; y < rows; y++) {
-        for (var x = 0; x < columns; x++) {
+      final candidates = <math.Point<int>>[];
+      for (var y = 1; y < rows - 1; y++) {
+        for (var x = 1; x < columns - 1; x++) {
           if (!grid[y][x]) {
             continue;
           }
-          if (x == 1) {
-            final edge = Point<int>(0, y);
-            grid[edge.y][edge.x] = true;
-            candidates.add(edge);
-          } else if (x == columns - 2) {
-            final edge = Point<int>(columns - 1, y);
-            grid[edge.y][edge.x] = true;
-            candidates.add(edge);
-          } else if (y == 1) {
-            final edge = Point<int>(x, 0);
-            grid[edge.y][edge.x] = true;
-            candidates.add(edge);
-          } else if (y == rows - 2) {
-            final edge = Point<int>(x, rows - 1);
-            grid[edge.y][edge.x] = true;
-            candidates.add(edge);
+          final dirs = _cardinalNeighbors(math.Point<int>(x, y)).where((neighbor) {
+            if (!_inBounds(neighbor)) {
+              return false;
+            }
+            return !grid[neighbor.y][neighbor.x];
+          }).toList();
+          if (dirs.isEmpty) {
+            continue;
           }
+          final edge = math.Point<int>(
+            (dirs.first.x == x) ? dirs.first.x : (dirs.first.x < x ? 0 : columns - 1),
+            (dirs.first.y == y) ? dirs.first.y : (dirs.first.y < y ? 0 : rows - 1),
+          );
+          grid[edge.y][edge.x] = true;
+          candidates.add(edge);
         }
       }
-      if (candidates.isNotEmpty) {
-        borderCells.add(candidates[rng.nextInt(candidates.length)]);
-      }
+      borderCells.addAll(candidates);
     }
-    return borderCells.isNotEmpty
-        ? borderCells[rng.nextInt(borderCells.length)]
-        : Point<int>(columns - 1, rows ~/ 2);
+    borderCells.shuffle(rng);
+    if (borderCells.isEmpty) {
+      return [math.Point<int>(columns - 1, rows ~/ 2)];
+    }
+    return borderCells.take(desired.clamp(1, borderCells.length)).toList();
   }
 
-  List<Point<int>> _pathBetween(List<List<bool>> grid, Point<int> start, Point<int> goal) {
-    final queue = Queue<Point<int>>()..add(start);
-    final cameFrom = <Point<int>, Point<int>>{};
-    final visited = <Point<int>>{start};
-
-    while (queue.isNotEmpty) {
-      final current = queue.removeFirst();
-      if (current == goal) {
-        break;
-      }
-      for (final neighbor in _cardinalNeighbors(current)) {
-        if (!_inBounds(neighbor) || visited.contains(neighbor)) {
-          continue;
-        }
-        if (!grid[neighbor.y][neighbor.x]) {
-          continue;
-        }
-        visited.add(neighbor);
-        queue.add(neighbor);
-        cameFrom[neighbor] = current;
-      }
-    }
-
-    final path = <Point<int>>[];
-    var current = goal;
-    path.add(current);
-    final safety = rows * columns;
-    var steps = 0;
-    while (current != start && cameFrom.containsKey(current) && steps < safety) {
-      current = cameFrom[current]!;
-      path.add(current);
-      steps += 1;
-    }
-    if (current != start) {
-      path
-        ..clear()
-        ..addAll([start, goal]);
-    } else {
-      path.add(start);
-    }
-    return path.reversed.toList(growable: false);
-  }
-
-  Iterable<Point<int>> _cardinalNeighbors(Point<int> cell) sync* {
+  Iterable<math.Point<int>> _cardinalNeighbors(math.Point<int> cell) sync* {
     for (final direction in _directionOffsets) {
-      yield Point<int>(cell.x + direction.x, cell.y + direction.y);
+      yield math.Point<int>(cell.x + direction.x, cell.y + direction.y);
     }
   }
 
-  bool _inBounds(Point<int> cell) {
+  bool _inBounds(math.Point<int> cell) {
     return cell.x >= 0 && cell.y >= 0 && cell.x < columns && cell.y < rows;
   }
 
-  Point<int> _toRelative(Point<int> absolute) {
-    return Point<int>(absolute.x - columns ~/ 2, absolute.y - rows ~/ 2);
+  math.Point<int> _toRelative(math.Point<int> absolute) {
+    return math.Point<int>(absolute.x - columns ~/ 2, absolute.y - rows ~/ 2);
   }
 
-  Vector2 _toWorld(Point<int> cell) {
-    final relative = _toRelative(cell);
-    return Vector2(relative.x * tileSize, relative.y * tileSize);
-  }
-
-  static const List<Point<int>> _directionOffsets = <Point<int>>[
-    Point<int>(0, -1),
-    Point<int>(1, 0),
-    Point<int>(0, 1),
-    Point<int>(-1, 0),
+  static const List<math.Point<int>> _directionOffsets = <math.Point<int>>[
+    math.Point<int>(0, -1),
+    math.Point<int>(1, 0),
+    math.Point<int>(0, 1),
+    math.Point<int>(-1, 0),
   ];
 }
